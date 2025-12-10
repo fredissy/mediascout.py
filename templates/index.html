@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block extra_styles %}
+<style>
+    .directory-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .directory-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .directory-card:hover {
+        box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+        transform: translateY(-4px);
+    }
+
+    .directory-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .directory-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+
+    .directory-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .directory-path {
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+        word-break: break-all;
+    }
+
+    .directory-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+
+    .directory-stats {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 0.25rem;
+    }
+
+    .missing-count {
+        color: #f59e0b;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .status-action {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-ok {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-error {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .scan-button {
+        width: 100%;
+        padding: 0.75rem;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-top: 1rem;
+    }
+
+    .scan-button:hover {
+        background: #5a67d8;
+    }
+
+    .progress-ring {
+        width: 64px;
+        height: 64px;
+        position: relative;
+    }
+
+    .progress-ring svg {
+        transform: rotate(-90deg);
+    }
+
+    .progress-ring circle {
+        fill: none;
+        stroke-width: 6;
+    }
+
+    .progress-bg {
+        stroke: #10b981;
+    }
+
+    .progress-fill {
+        stroke: #f59e0b;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.3s;
+    }
+
+    .progress-fill.complete {
+        stroke: #10b981;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Media Directories</h1>
+<p class="page-description">Select a directory to scan for missing artwork.</p>
+
+{% if success_message %}
+<div class="alert alert-success">
+    <span>✓</span>
+    <span>{{ success_message }}</span>
+</div>
+{% endif %}
+
+<div class="directory-grid">
+    {% for dir in directories %}
+    <div class="directory-card" onclick="window.location.href='/scan/{{ dir.directory }}'">
+        <div class="directory-header">
+            <div class="directory-icon">📁</div>
+            <div class="directory-info">
+                <div class="directory-path">{{ dir.directory.split('/')[-1] or dir.directory }}</div>
+                <div class="directory-meta">
+                    <span>{% if dir.location_type == 'network' %}🌐 Network{% else %}📍 Local{% endif %}</span>
+                    {% if dir.last_modified %}
+                    <span>🕐 {{ dir.last_modified }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="progress-ring">
+                <svg width="64" height="64">
+                    <circle class="progress-bg" cx="32" cy="32" r="28"></circle>
+                    <circle class="progress-fill {% if dir.missing_covers == 0 %}complete{% endif %}" 
+                            cx="32" cy="32" r="28"
+                            stroke-dasharray="176"
+                            stroke-dashoffset="{{ 176 - (176 * (dir.missing_covers / dir.total_files) if dir.total_files > 0 else 0) }}">
+                    </circle>
+                </svg>
+            </div>
+        </div>
+
+        <div class="directory-stats">
+            <div class="stat">
+                <div class="stat-value">{{ dir.total_files }}</div>
+                <div class="stat-label">Total Files</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value missing-count">{{ dir.missing_covers }}</div>
+                <div class="stat-label">Missing Covers</div>
+            </div>
+        </div>
+
+        {% if dir.status == 'action_needed' %}
+        <div class="status-badge status-action">
+            ⚠️ Action Needed
+        </div>
+        {% elif dir.status == 'ok' %}
+        <div class="status-badge status-ok">
+            ✓ Up to date
+        </div>
+        {% elif dir.status == 'error' %}
+        <div class="status-badge status-error">
+            ✗ Error: {{ dir.error }}
+        </div>
+        {% endif %}
+
+        <div style="text-align: center; margin-top: 1rem; color: #6b7280; font-size: 0.875rem;">
+            Click to scan
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

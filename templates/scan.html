@@ -1,0 +1,478 @@
+<!-- templates/scan.html -->
+{% extends "base.html" %}
+
+{% block extra_styles %}
+<style>
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        color: #374151;
+        text-decoration: none;
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.2s;
+    }
+
+    .back-button:hover {
+        background: #f9fafb;
+        border-color: #d1d5db;
+    }
+
+    .scan-header {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .movie-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .movie-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .movie-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .movie-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .movie-filename {
+        font-size: 0.875rem;
+        color: #6b7280;
+        font-family: 'Courier New', monospace;
+    }
+
+    .movie-status {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-loading {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .status-ready {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-error {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .tmdb-info {
+        background: #f9fafb;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .tmdb-match {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    .tmdb-poster {
+        width: 80px;
+        height: 120px;
+        border-radius: 6px;
+        object-fit: cover;
+        background: #e5e7eb;
+    }
+
+    .tmdb-details h4 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .tmdb-overview {
+        font-size: 0.875rem;
+        color: #6b7280;
+        line-height: 1.5;
+    }
+
+    .poster-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 1rem;
+    }
+
+    .poster-option {
+        position: relative;
+        cursor: pointer;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s;
+        border: 3px solid transparent;
+    }
+
+    .poster-option:hover {
+        transform: scale(1.05);
+    }
+
+    .poster-option.selected {
+        border-color: #667eea;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .poster-option img {
+        width: 100%;
+        aspect-ratio: 2/3;
+        object-fit: cover;
+        display: block;
+    }
+
+    .poster-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .poster-option.selected .poster-overlay {
+        opacity: 1;
+    }
+
+    .check-icon {
+        width: 32px;
+        height: 32px;
+        background: #667eea;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+    }
+
+    .skip-button {
+        padding: 0.5rem 1rem;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        color: #374151;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .skip-button:hover {
+        background: #e5e7eb;
+    }
+
+    .validation-section {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+        margin-top: 2rem;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .validate-button {
+        padding: 1rem 2rem;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .validate-button:hover:not(:disabled) {
+        background: #5a67d8;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .validate-button:disabled {
+        background: #d1d5db;
+        cursor: not-allowed;
+    }
+
+    .selection-count {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .selection-count strong {
+        color: #667eea;
+        font-size: 1.25rem;
+    }
+
+    .error-message {
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        color: #991b1b;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .loading-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        min-width: 300px;
+    }
+
+    .loading-content .spinner {
+        width: 48px;
+        height: 48px;
+        border-width: 4px;
+        margin: 0 auto 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="/" class="back-button">
+    ← Back to Directories
+</a>
+
+<div class="scan-header">
+    <h1 class="page-title">{{ result.directory }}</h1>
+    <p class="page-description">
+        Found {{ result.missing_covers }} movie{{ 's' if result.missing_covers != 1 else '' }} 
+        without cover art ({{ result.total_files }} total files scanned)
+    </p>
+</div>
+
+{% if result.movies|length == 0 %}
+<div class="alert alert-success">
+    <span>✓</span>
+    <span>All movies in this directory have cover art!</span>
+</div>
+{% else %}
+<div id="movie-list" class="movie-list">
+    {% for movie in result.movies %}
+    <div class="movie-card" data-movie-id="{{ loop.index0 }}">
+        <div class="movie-header">
+            <div>
+                <h3 class="movie-title">{{ movie.title }}{% if movie.year %} ({{ movie.year }}){% endif %}</h3>
+                <p class="movie-filename">{{ movie.filename }}</p>
+            </div>
+            <div class="movie-status status-loading">
+                <div class="spinner"></div>
+                <span>Loading...</span>
+            </div>
+        </div>
+        
+        <div class="movie-content">
+            <!-- TMDB results will be loaded here -->
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="validation-section">
+    <div class="selection-count">
+        <strong id="selection-count">0</strong> cover{{ 's' if result.missing_covers != 1 else '' }} selected
+    </div>
+    <button class="validate-button" id="validate-btn" onclick="downloadCovers()" disabled>
+        <span>💾</span>
+        <span>Download Selected Covers</span>
+    </button>
+</div>
+
+<div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <h3>Downloading covers...</h3>
+        <p id="download-progress">0 / 0 completed</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const movies = {{ result.movies | tojson }};
+const selections = new Map();
+
+// Load TMDB data for all movies
+async function loadMovieData() {
+    for (let i = 0; i < movies.length; i++) {
+        const movie = movies[i];
+        const card = document.querySelector(`[data-movie-id="${i}"]`);
+        const statusEl = card.querySelector('.movie-status');
+        const contentEl = card.querySelector('.movie-content');
+        
+        try {
+            const response = await fetch('/api/search-movie', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    title: movie.title,
+                    year: movie.year
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                statusEl.className = 'movie-status status-ready';
+                statusEl.innerHTML = '<span>✓</span><span>Ready</span>';
+                
+                // Display TMDB match and posters
+                contentEl.innerHTML = `
+                    <div class="tmdb-info">
+                        <div class="tmdb-match">
+                            ${result.posters[0] ? `<img src="${result.posters[0].url_thumb}" class="tmdb-poster" alt="Poster">` : ''}
+                            <div class="tmdb-details">
+                                <h4>${result.movie.title} (${result.movie.year || 'N/A'})</h4>
+                                <p class="tmdb-overview">${result.movie.overview.substring(0, 150)}${result.movie.overview.length > 150 ? '...' : ''}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                        <strong>Select a cover:</strong>
+                        <button class="skip-button" onclick="skipMovie(${i})">Skip this movie</button>
+                    </div>
+                    
+                    <div class="poster-grid">
+                        ${result.posters.map((poster, idx) => `
+                            <div class="poster-option" onclick="selectPoster(${i}, ${idx}, '${poster.url_full}')">
+                                <img src="${poster.url_thumb}" alt="Poster option ${idx + 1}">
+                                <div class="poster-overlay">
+                                    <div class="check-icon">✓</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                statusEl.className = 'movie-status status-error';
+                statusEl.innerHTML = '<span>✗</span><span>Error</span>';
+                contentEl.innerHTML = `<div class="error-message">${result.error}</div>`;
+            }
+        } catch (error) {
+            statusEl.className = 'movie-status status-error';
+            statusEl.innerHTML = '<span>✗</span><span>Error</span>';
+            contentEl.innerHTML = `<div class="error-message">Failed to load: ${error.message}</div>`;
+        }
+    }
+}
+
+function selectPoster(movieId, posterId, posterUrl) {
+    // Remove previous selection for this movie
+    const card = document.querySelector(`[data-movie-id="${movieId}"]`);
+    card.querySelectorAll('.poster-option').forEach(el => el.classList.remove('selected'));
+    
+    // Add selection to clicked poster
+    card.querySelectorAll('.poster-option')[posterId].classList.add('selected');
+    
+    // Store selection
+    selections.set(movieId, {
+        url: posterUrl,
+        path: movies[movieId].cover_path,
+        filename: movies[movieId].filename
+    });
+    
+    updateSelectionCount();
+}
+
+function skipMovie(movieId) {
+    selections.delete(movieId);
+    const card = document.querySelector(`[data-movie-id="${movieId}"]`);
+    card.querySelectorAll('.poster-option').forEach(el => el.classList.remove('selected'));
+    updateSelectionCount();
+}
+
+function updateSelectionCount() {
+    const count = selections.size;
+    document.getElementById('selection-count').textContent = count;
+    document.getElementById('validate-btn').disabled = count === 0;
+}
+
+async function downloadCovers() {
+    const overlay = document.getElementById('loading-overlay');
+    const progress = document.getElementById('download-progress');
+    const covers = Array.from(selections.values());
+    
+    overlay.style.display = 'flex';
+    
+    try {
+        const response = await fetch('/api/save-covers', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ covers })
+        });
+        
+        const result = await response.json();
+        
+        // Redirect back to home with success message
+        const message = `Successfully downloaded ${result.success} cover${result.success !== 1 ? 's' : ''}${result.failed > 0 ? ` (${result.failed} failed)` : ''}`;
+        window.location.href = `/?success=${encodeURIComponent(message)}`;
+    } catch (error) {
+        alert('Error downloading covers: ' + error.message);
+        overlay.style.display = 'none';
+    }
+}
+
+// Start loading movie data when page loads
+loadMovieData();
+</script>
+{% endblock %}
