@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 # Set working directory
 WORKDIR /app
@@ -29,6 +29,7 @@ EXPOSE 8000
 ENV MEDIA_DIRECTORIES=/media/movies
 ENV FILE_EXTENSIONS=mkv,mp4,avi,mov
 ENV TMDB_API_KEY=""
+ENV TMDB_LOCALE=en-US
 
 # Run the application
 CMD ["python", "app.py", "--host", "0.0.0.0", "--port", "8000"]

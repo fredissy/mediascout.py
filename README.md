@@ -30,6 +30,7 @@ pip install -r requirements.txt
 export MEDIA_DIRECTORIES="/media/movies,/mnt/films"
 export FILE_EXTENSIONS="mkv,mp4,avi"
 export TMDB_API_KEY="your_api_key_here"
+export TMDB_LOCALE="en-US"
 ```
 
 **Option B: Command line arguments**
@@ -37,7 +38,8 @@ export TMDB_API_KEY="your_api_key_here"
 python app.py \
   --directories "/media/movies,/mnt/films" \
   --extensions "mkv,mp4,avi" \
-  --tmdb-key "your_api_key_here"
+  --tmdb-key "your_api_key_here" \
+  --tmdb-locale "en-US"
 ```
 
 ## Usage
@@ -78,6 +80,7 @@ mediascout/
 | Directories | `MEDIA_DIRECTORIES` | `--directories` | Comma-separated list of media directories |
 | Extensions | `FILE_EXTENSIONS` | `--extensions` | Comma-separated list of file extensions (mkv,mp4,avi) |
 | TMDB Key | `TMDB_API_KEY` | `--tmdb-key` | Your TMDB API key |
+| TMDB Locale | `TMDB_LOCALE` | `--tmdb-locale` | Language for movie info (en-US, fr-FR, de-DE, etc.) |
 | Port | - | `--port` | Server port (default: 8000) |
 | Host | - | `--host` | Server host (default: 0.0.0.0) |
 

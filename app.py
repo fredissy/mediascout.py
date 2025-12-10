@@ -26,6 +26,7 @@ class Config:
         self.media_directories: List[str] = []
         self.file_extensions: List[str] = []
         self.tmdb_api_key: str = ""
+        self.tmdb_locale: str = "en-US"
         self.tmdb_base_url = "https://api.themoviedb.org/3"
         self.tmdb_image_base = "https://image.tmdb.org/t/p"
         
@@ -40,6 +41,10 @@ class Config:
             self.file_extensions = [e.strip().lower() for e in exts.split(',')]
         
         self.tmdb_api_key = os.getenv('TMDB_API_KEY', '')
+        
+        locale = os.getenv('TMDB_LOCALE', 'en-US')
+        if locale:
+            self.tmdb_locale = locale.strip()
     
     def load_from_args(self, args):
         """Load configuration from command line arguments."""
@@ -49,6 +54,8 @@ class Config:
             self.file_extensions = [e.strip().lower() for e in args.extensions.split(',')]
         if args.tmdb_key:
             self.tmdb_api_key = args.tmdb_key
+        if args.tmdb_locale:
+            self.tmdb_locale = args.tmdb_locale.strip()
     
     def validate(self):
         """Validate that all required configuration is present."""
@@ -59,6 +66,12 @@ class Config:
             errors.append("No file extensions specified")
         if not self.tmdb_api_key:
             errors.append("No TMDB API key specified")
+        
+        # Validate TMDB locale format (should be like en-US, fr-FR, de-DE, etc.)
+        locale_pattern = re.compile(r'^[a-z]{2}-[A-Z]{2}')
+                                    
+        if not locale_pattern.match(self.tmdb_locale):
+            errors.append(f"Invalid TMDB locale format: '{self.tmdb_locale}'. Expected format: 'en-US', 'fr-FR', 'de-DE', etc.")
         
         for directory in self.media_directories:
             if not os.path.exists(directory):
@@ -302,10 +315,11 @@ class FileScanner:
 class TMDBClient:
     """Client for The Movie Database API."""
     
-    def __init__(self, api_key: str, base_url: str, image_base: str):
+    def __init__(self, api_key: str, base_url: str, image_base: str, locale: str = "en-US"):
         self.api_key = api_key
         self.base_url = base_url
         self.image_base = image_base
+        self.locale = locale
     
     def search_movie(self, title: str, year: Optional[int] = None) -> Dict:
         """
@@ -319,7 +333,7 @@ class TMDBClient:
             params = {
                 'api_key': self.api_key,
                 'query': title,
-                'language': 'en-US'
+                'language': self.locale
             }
             if year:
                 params['year'] = year
@@ -536,6 +550,7 @@ def main():
     parser.add_argument('--directories', help='Comma-separated list of media directories')
     parser.add_argument('--extensions', help='Comma-separated list of file extensions')
     parser.add_argument('--tmdb-key', help='TMDB API key')
+    parser.add_argument('--tmdb-locale', help='TMDB locale for movie info (e.g., en-US, fr-FR, de-DE)', default='en-US')
     parser.add_argument('--port', type=int, default=8000, help='Port to run on (default: 8000)')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     
@@ -556,21 +571,24 @@ def main():
         print("  MEDIA_DIRECTORIES=/path1,/path2")
         print("  FILE_EXTENSIONS=mkv,mp4,avi")
         print("  TMDB_API_KEY=your_key")
+        print("  TMDB_LOCALE=en-US (or fr-FR, de-DE, etc.)")
         print("\nCommand line:")
         print("  --directories /path1,/path2")
         print("  --extensions mkv,mp4,avi")
         print("  --tmdb-key your_key")
+        print("  --tmdb-locale en-US")
         return
     
     # Initialize global instances
     global scanner, tmdb_client
     scanner = FileScanner(config)
-    tmdb_client = TMDBClient(config.tmdb_api_key, config.tmdb_base_url, config.tmdb_image_base)
+    tmdb_client = TMDBClient(config.tmdb_api_key, config.tmdb_base_url, config.tmdb_image_base, config.tmdb_locale)
     
     # Run Flask app
     print(f"\n✓ Mediascout starting on http://{args.host}:{args.port}")
     print(f"✓ Monitoring {len(config.media_directories)} director{'y' if len(config.media_directories) == 1 else 'ies'}")
-    print(f"✓ File extensions: {', '.join(config.file_extensions)}\n")
+    print(f"✓ File extensions: {', '.join(config.file_extensions)}")
+    print(f"✓ TMDB Locale: {config.tmdb_locale}\n")
     
     app.run(host=args.host, port=args.port, debug=True)
 
