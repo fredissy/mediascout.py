@@ -219,13 +219,17 @@ class FileScanner:
             # Detect if directory is local or network mount
             location_type = self._detect_location_type(directory)
             
+            # Check if directory is writable
+            is_writable = os.access(directory, os.W_OK)
+            
             return {
                 'directory': directory,
                 'total_files': total_files,
                 'missing_covers': missing_covers,
                 'last_modified': datetime.fromtimestamp(last_modified).strftime('%Y-%m-%d %H:%M') if last_modified else None,
                 'status': 'ok' if missing_covers == 0 else 'action_needed',
-                'location_type': location_type
+                'location_type': location_type,
+                'is_writable': is_writable
             }
         
         except Exception as e:
@@ -233,7 +237,8 @@ class FileScanner:
                 'directory': directory,
                 'error': str(e),
                 'status': 'error',
-                'location_type': 'unknown'
+                'location_type': 'unknown',
+                'is_writable': False
             }
     
     def _detect_location_type(self, directory: str) -> str:
@@ -250,10 +255,17 @@ class FileScanner:
             try:
                 import subprocess
                 drive = directory[:2]  # e.g., 'C:'
-                result = subprocess.run(['net', 'use'], capture_output=True, text=True)
-                if drive in result.stdout:
+                result = subprocess.run(
+                    ['net', 'use'], 
+                    capture_output=True, 
+                    text=True,
+                    encoding='utf-8',
+                    errors='ignore'  # Ignore encoding errors
+                )
+                if drive.upper() in result.stdout.upper():
                     return 'network'
-            except:
+            except Exception:
+                # If detection fails, assume local
                 pass
             return 'local'
         
@@ -278,7 +290,7 @@ class FileScanner:
                                 return 'network'
                 
                 return 'local'
-            except:
+            except Exception:
                 return 'local'
         
         return 'local'

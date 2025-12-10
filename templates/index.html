@@ -117,6 +117,14 @@
         color: #991b1b;
     }
 
+    .status-readonly {
+        background: #fef3c7;
+        color: #92400e;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
     .scan-button {
         width: 100%;
         padding: 0.75rem;
@@ -185,6 +193,9 @@
                 <div class="directory-path">{{ dir.directory.split('/')[-1] or dir.directory }}</div>
                 <div class="directory-meta">
                     <span>{% if dir.location_type == 'network' %}🌐 Network{% else %}📍 Local{% endif %}</span>
+                    {% if not dir.is_writable %}
+                    <span style="color: #dc2626;">🔒 Read-only</span>
+                    {% endif %}
                     {% if dir.last_modified %}
                     <span>🕐 {{ dir.last_modified }}</span>
                     {% endif %}
@@ -224,6 +235,12 @@
         {% elif dir.status == 'error' %}
         <div class="status-badge status-error">
             ✗ Error: {{ dir.error }}
+        </div>
+        {% endif %}
+
+        {% if not dir.is_writable and dir.missing_covers > 0 %}
+        <div class="status-badge status-readonly" style="margin-top: 0.5rem;">
+            🔒 Cannot save covers - directory is read-only
         </div>
         {% endif %}
 
