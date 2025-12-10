@@ -32,4 +32,4 @@ ENV TMDB_API_KEY=""
 ENV TMDB_LOCALE=en-US
 
 # Run the application
-CMD ["python", "app.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "app:app"]
