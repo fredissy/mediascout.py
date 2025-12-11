@@ -467,8 +467,30 @@ class ImageProcessor:
 
 app = Flask(__name__)
 config = Config()
-scanner = None
-tmdb_client = None
+
+# 1. Load Environment Configuration immediately (Required for Gunicorn)
+config.load_from_env()
+
+# 2. Check for critical errors (Optional: Logs to Gunicorn stderr)
+validation_errors = config.validate()
+if validation_errors:
+    # We print to stderr so it shows up in Docker logs
+    import sys
+    print("WARNING: Configuration issues detected during startup:", file=sys.stderr)
+    for err in validation_errors:
+        print(f"  - {err}", file=sys.stderr)
+
+# 3. Initialize global instances immediately
+# FileScanner holds a reference to config, so it will see updates automatically
+scanner = FileScanner(config)
+
+# TMDBClient copies values, so it is initialized with currently loaded env vars
+tmdb_client = TMDBClient(
+    config.tmdb_api_key, 
+    config.tmdb_base_url, 
+    config.tmdb_image_base, 
+    config.tmdb_locale
+)
 
 @app.route('/')
 def index():
@@ -555,9 +577,8 @@ def main():
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     
     args = parser.parse_args()
-    
-    # Load configuration
-    config.load_from_env()
+
+    ## config.load_from_env() has already run at module level :    
     config.load_from_args(args)
     
     # Validate configuration
@@ -579,10 +600,15 @@ def main():
         print("  --tmdb-locale en-US")
         return
     
-    # Initialize global instances
-    global scanner, tmdb_client
-    scanner = FileScanner(config)
-    tmdb_client = TMDBClient(config.tmdb_api_key, config.tmdb_base_url, config.tmdb_image_base, config.tmdb_locale)
+    # Re-initialize TMDBClient because it stores strings (api_key) internally
+    # that might have changed if command line args were used.
+    global tmdb_client
+    tmdb_client = TMDBClient(
+        config.tmdb_api_key, 
+        config.tmdb_base_url, 
+        config.tmdb_image_base, 
+        config.tmdb_locale
+    )
     
     # Run Flask app
     print(f"\n✓ Mediascout starting on http://{args.host}:{args.port}")
