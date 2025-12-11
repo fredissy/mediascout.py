@@ -36,6 +36,7 @@ jobs:
           else
             echo "Found $RECENT_COMMITS commit(s) in the last 24 hours. Proceeding with build."
             echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Log in to Docker Hub
         if: steps.check_changes.outputs.should_build == 'true'
