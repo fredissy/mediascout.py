@@ -25,11 +25,5 @@ VOLUME ["/media"]
 # Expose port
 EXPOSE 8000
 
-# Set environment variables with defaults
-ENV MEDIA_DIRECTORIES=/media/movies
-ENV FILE_EXTENSIONS=mkv,mp4,avi,mov
-ENV TMDB_API_KEY=""
-ENV TMDB_LOCALE=en-US
-
 # Run the application
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "app:app"]
