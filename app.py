@@ -7,6 +7,9 @@ import os
 import re
 import argparse
 import base64
+import time
+from threading import RLock
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict
 from datetime import datetime
@@ -30,23 +33,23 @@ class Config:
         self.tmdb_locale: str = "en-US"
         self.tmdb_base_url = "https://api.themoviedb.org/3"
         self.tmdb_image_base = "https://image.tmdb.org/t/p"
-        
+
     def load_from_env(self):
         """Load configuration from environment variables."""
         dirs = os.getenv('MEDIA_DIRECTORIES', '')
         if dirs:
             self.media_directories = [d.strip() for d in dirs.split(',')]
-        
+
         exts = os.getenv('FILE_EXTENSIONS', '')
         if exts:
             self.file_extensions = [e.strip().lower() for e in exts.split(',')]
-        
+
         self.tmdb_api_key = os.getenv('TMDB_API_KEY', '')
         
         locale = os.getenv('TMDB_LOCALE', 'en-US')
         if locale:
             self.tmdb_locale = locale.strip()
-    
+
     def load_from_args(self, args):
         """Load configuration from command line arguments."""
         if args.directories:
@@ -57,7 +60,7 @@ class Config:
             self.tmdb_api_key = args.tmdb_key
         if args.tmdb_locale:
             self.tmdb_locale = args.tmdb_locale.strip()
-    
+
     def validate(self):
         """Validate that all required configuration is present."""
         errors = []
@@ -67,19 +70,19 @@ class Config:
             errors.append("No file extensions specified")
         if not self.tmdb_api_key:
             errors.append("No TMDB API key specified")
-        
+
         # Validate TMDB locale format (should be like en-US, fr-FR, de-DE, etc.)
         locale_pattern = re.compile(r'^[a-z]{2}-[A-Z]{2}')
                                     
         if not locale_pattern.match(self.tmdb_locale):
             errors.append(f"Invalid TMDB locale format: '{self.tmdb_locale}'. Expected format: 'en-US', 'fr-FR', 'de-DE', etc.")
-        
+
         for directory in self.media_directories:
             if not os.path.exists(directory):
                 errors.append(f"Directory does not exist: {directory}")
             elif not os.path.isdir(directory):
                 errors.append(f"Not a directory: {directory}")
-        
+
         return errors
 
 # ============================================================================
@@ -88,7 +91,7 @@ class Config:
 
 class FilenameParser:
     """Parse movie titles and years from filenames."""
-    
+
     # Common video quality/source indicators to remove
     NOISE_PATTERNS = [
         r'\b(1080p|720p|480p|2160p|4k)\b',
@@ -97,7 +100,7 @@ class FilenameParser:
         r'\b(aac|ac3|dts|mp3)\b',
         r'\b(proper|repack|unrated|extended|directors.cut)\b',
     ]
-    
+
     @staticmethod
     def parse(filename: str) -> Tuple[str, Optional[int]]:
         """
@@ -115,7 +118,7 @@ class FilenameParser:
         # Remove noise patterns
         for pattern in FilenameParser.NOISE_PATTERNS:
             name = re.sub(pattern, '', name, flags=re.IGNORECASE)
-        
+
         # Look for year (1900-2099) that's isolated
         year_match = re.search(r'\b(19\d{2}|20\d{2})\b', name)
         year = None
@@ -135,7 +138,7 @@ class FilenameParser:
                 # Year is likely a release year
                 year = potential_year
                 title = name[:year_pos].strip()
-        
+
         # Clean up extra spaces
         title = ' '.join(title.split())
         
@@ -147,10 +150,10 @@ class FilenameParser:
 
 class FileScanner:
     """Scan directories for media files and check for existing covers."""
-    
+
     def __init__(self, config: Config):
         self.config = config
-    
+
     def scan_directory(self, directory: str) -> Dict:
         """
         Scan a directory for media files without covers.
@@ -177,7 +180,7 @@ class FileScanner:
                     cover_path = str(Path(filepath).with_suffix('.jpg'))
                     if os.path.exists(cover_path):
                         continue  # Skip files with existing covers
-                    
+
                     # Parse filename
                     title, year = FilenameParser.parse(file)
                     
@@ -188,7 +191,7 @@ class FileScanner:
                         'year': year,
                         'cover_path': cover_path
                     })
-            
+
             return {
                 'directory': directory,
                 'total_files': total_files,
@@ -204,7 +207,7 @@ class FileScanner:
                 'error': str(e),
                 'status': 'error'
             }
-    
+
     def get_directory_stats(self, directory: str) -> Dict:
         """Get statistics for a directory without full scan."""
         total_files = 0
@@ -229,13 +232,13 @@ class FileScanner:
                     mtime = os.path.getmtime(filepath)
                     if last_modified is None or mtime > last_modified:
                         last_modified = mtime
-            
+
             # Detect if directory is local or network mount
             location_type = self._detect_location_type(directory)
             
             # Check if directory is writable
             is_writable = os.access(directory, os.W_OK)
-            
+
             return {
                 'directory': directory,
                 'total_files': total_files,
@@ -254,7 +257,7 @@ class FileScanner:
                 'location_type': 'unknown',
                 'is_writable': False
             }
-    
+
     def _detect_location_type(self, directory: str) -> str:
         """Detect if directory is local or network mount."""
         import platform
@@ -270,8 +273,8 @@ class FileScanner:
                 import subprocess
                 drive = directory[:2]  # e.g., 'C:'
                 result = subprocess.run(
-                    ['net', 'use'], 
-                    capture_output=True, 
+                    ['net', 'use'],
+                    capture_output=True,
                     text=True,
                     encoding='utf-8',
                     errors='ignore'  # Ignore encoding errors
@@ -303,7 +306,7 @@ class FileScanner:
                             if fs_type in network_fs:
                                 return 'network'
                 
-                return 'local'
+                            return 'local'
             except Exception:
                 return 'local'
         
@@ -315,13 +318,13 @@ class FileScanner:
 
 class TMDBClient:
     """Client for The Movie Database API."""
-    
+
     def __init__(self, api_key: str, base_url: str, image_base: str, locale: str = "en-US"):
         self.api_key = api_key
         self.base_url = base_url
         self.image_base = image_base
         self.locale = locale
-    
+
     def search_movie(self, title: str, year: Optional[int] = None) -> Dict:
         """
         Search for a movie by title and optional year.
@@ -338,7 +341,7 @@ class TMDBClient:
             }
             if year:
                 params['year'] = year
-            
+
             response = requests.get(
                 f"{self.base_url}/search/movie",
                 params=params,
@@ -352,14 +355,14 @@ class TMDBClient:
                     'success': False,
                     'error': 'No results found'
                 }
-            
+
             # Get most popular result
             movie = max(data['results'], key=lambda x: x.get('popularity', 0))
-            
+
             # Get posters for this movie
             movie_id = movie['id']
             posters = self._get_movie_posters(movie_id)
-            
+
             return {
                 'success': True,
                 'movie': {
@@ -382,7 +385,7 @@ class TMDBClient:
                 'success': False,
                 'error': f'Unexpected error: {str(e)}'
             }
-    
+
     def _get_movie_posters(self, movie_id: int) -> List[Dict]:
         """Get available posters for a movie."""
         try:
@@ -413,7 +416,7 @@ class TMDBClient:
 
 class ImageProcessor:
     """Download and process cover images."""
-    
+
     @staticmethod
     def download_and_save(url: str, output_path: str, size: Tuple[int, int] = (160, 160)) -> Dict:
         """
@@ -426,10 +429,10 @@ class ImageProcessor:
             # Download image
             response = requests.get(url, timeout=15)
             response.raise_for_status()
-            
+
             # Open image
             img = Image.open(BytesIO(response.content))
-            
+
             # Convert to RGB if necessary (for PNG with transparency)
             if img.mode in ('RGBA', 'LA', 'P'):
                 background = Image.new('RGB', img.size, (255, 255, 255))
@@ -437,20 +440,20 @@ class ImageProcessor:
                     img = img.convert('RGBA')
                 background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
                 img = background
-            
+
             # Resize to 160x160 (thumbnail maintains aspect ratio then crops)
             img.thumbnail((size[0] * 2, size[1] * 2), Image.Resampling.LANCZOS)
-            
+
             # Create square image (crop to center)
             if img.size[0] != img.size[1]:
                 min_dim = min(img.size)
                 left = (img.size[0] - min_dim) // 2
                 top = (img.size[1] - min_dim) // 2
                 img = img.crop((left, top, left + min_dim, top + min_dim))
-            
+
             # Final resize to exact dimensions
             img = img.resize(size, Image.Resampling.LANCZOS)
-            
+
             # Save as JPEG
             img.save(output_path, 'JPEG', quality=90, optimize=True)
             
@@ -479,7 +482,7 @@ if validation_errors:
     import sys
     print("WARNING: Configuration issues detected during startup:", file=sys.stderr)
     for err in validation_errors:
-        print(f"  - {err}", file=sys.stderr)
+        print(f" - {err}", file=sys.stderr)
 
 # 3. Initialize global instances immediately
 # FileScanner holds a reference to config, so it will see updates automatically
@@ -487,11 +490,85 @@ scanner = FileScanner(config)
 
 # TMDBClient copies values, so it is initialized with currently loaded env vars
 tmdb_client = TMDBClient(
-    config.tmdb_api_key, 
-    config.tmdb_base_url, 
-    config.tmdb_image_base, 
+    config.tmdb_api_key,
+    config.tmdb_base_url,
+    config.tmdb_image_base,
     config.tmdb_locale
 )
+
+# --------------------------------------------------------------------------
+# Background cache of directory stats
+# --------------------------------------------------------------------------
+executor = ThreadPoolExecutor(max_workers=max(1, min(8, len(config.media_directories) or 1)))
+
+class DirectoryStatsCache:
+    """
+    Thread-safe cache for get_directory_stats(). Returns cached stats immediately
+    and refreshes them in the background when stale or missing.
+    """
+    def __init__(self, scanner: FileScanner):
+        self.scanner = scanner
+        self._cache: Dict[str, Dict] = {}  # directory -> {'stats': dict, 'ts': float, 'inflight': bool}
+        self._lock = RLock()
+
+    def _placeholder(self, directory: str, status: str = 'refreshing') -> Dict:
+        return {
+            'directory': directory,
+            'total_files': None,
+            'missing_covers': None,
+            'last_modified': None,
+            'status': status,
+            'location_type': self.scanner._detect_location_type(directory),
+            'is_writable': os.access(directory, os.W_OK),
+        }
+
+    def _refresh_async(self, directory: str):
+        def _task():
+            new_stats = self.scanner.get_directory_stats(directory)
+            with self._lock:
+                self._cache[directory] = {'stats': new_stats, 'ts': time.time(), 'inflight': False}
+        executor.submit(_task)
+
+    def peek(self, directory: str) -> Dict:
+        """
+        Return current cached stats without triggering a refresh.
+        If not present, return a lightweight placeholder with status 'unknown'.
+        """
+        with self._lock:
+            entry = self._cache.get(directory)
+            return entry['stats'] if entry else self._placeholder(directory, status='unknown')
+
+    def get(self, directory: str, ttl_seconds: int = 300) -> Dict:
+        """
+        Return cached stats if fresh. If stale/missing, mark inflight and trigger
+        background refresh, then return last cached or a placeholder.
+        """
+        now = time.time()
+        with self._lock:
+            entry = self._cache.get(directory)
+            if entry and (now - entry['ts'] < ttl_seconds):
+                return entry['stats']  # fresh
+
+            # Already refreshing? Return whatever we have.
+            if entry and entry.get('inflight'):
+                return entry['stats']
+
+            # Prepare placeholder or existing stats, mark inflight, then refresh.
+            stats = entry['stats'] if entry else self._placeholder(directory, status='refreshing')
+            self._cache[directory] = {'stats': stats, 'ts': entry['ts'] if entry else 0.0, 'inflight': True}
+
+        self._refresh_async(directory)
+        return stats
+
+stats_cache = DirectoryStatsCache(scanner)
+
+# Optional: pre-warm cache at startup (runs in background; first page load stays fast)
+for d in config.media_directories:
+    try:
+        stats_cache.get(d, ttl_seconds=0)
+    except Exception:
+        pass
+
 
 @app.template_filter('b64encode')
 def b64encode_filter(s):
@@ -502,15 +579,15 @@ def index():
     """Main page - directory listing."""
     directories = []
     for directory in config.media_directories:
-        stats = scanner.get_directory_stats(directory)
+        stats = stats_cache.get(directory, ttl_seconds=300)  # 5 min TTL
         directories.append(stats)
     
     # Get success message from session if present
     success_msg = request.args.get('success')
     
-    return render_template('index.html', 
-                         directories=directories,
-                         success_message=success_msg)
+    return render_template('index.html',
+                           directories=directories,
+                           success_message=success_msg)
 
 @app.route('/scan/<path:directory>')
 def scan_directory(directory):
@@ -525,7 +602,7 @@ def scan_directory(directory):
     # Validate directory is in config
     if directory not in config.media_directories:
         return "Directory not allowed", 403
-    
+
     scan_result = scanner.scan_directory(directory)
     
     if scan_result['status'] == 'error':
@@ -590,38 +667,38 @@ def main():
     
     args = parser.parse_args()
 
-    ## config.load_from_env() has already run at module level :    
+    ## config.load_from_env() has already run at module level :
     config.load_from_args(args)
-    
+
     # Validate configuration
     errors = config.validate()
     if errors:
         print("Configuration errors:")
         for error in errors:
-            print(f"  - {error}")
+            print(f" - {error}")
         print("\nPlease provide configuration via environment variables or command line arguments.")
         print("\nEnvironment variables:")
-        print("  MEDIA_DIRECTORIES=/path1,/path2")
-        print("  FILE_EXTENSIONS=mkv,mp4,avi")
-        print("  TMDB_API_KEY=your_key")
-        print("  TMDB_LOCALE=en-US (or fr-FR, de-DE, etc.)")
+        print(" MEDIA_DIRECTORIES=/path1,/path2")
+        print(" FILE_EXTENSIONS=mkv,mp4,avi")
+        print(" TMDB_API_KEY=your_key")
+        print(" TMDB_LOCALE=en-US (or fr-FR, de-DE, etc.)")
         print("\nCommand line:")
-        print("  --directories /path1,/path2")
-        print("  --extensions mkv,mp4,avi")
-        print("  --tmdb-key your_key")
-        print("  --tmdb-locale en-US")
+        print(" --directories /path1,/path2")
+        print(" --extensions mkv,mp4,avi")
+        print(" --tmdb-key your_key")
+        print(" --tmdb-locale en-US")
         return
-    
+
     # Re-initialize TMDBClient because it stores strings (api_key) internally
     # that might have changed if command line args were used.
     global tmdb_client
     tmdb_client = TMDBClient(
-        config.tmdb_api_key, 
-        config.tmdb_base_url, 
-        config.tmdb_image_base, 
+        config.tmdb_api_key,
+        config.tmdb_base_url,
+        config.tmdb_image_base,
         config.tmdb_locale
     )
-    
+
     # Run Flask app
     print(f"\n✓ Mediascout starting on http://{args.host}:{args.port}")
     print(f"✓ Monitoring {len(config.media_directories)} director{'y' if len(config.media_directories) == 1 else 'ies'}")
