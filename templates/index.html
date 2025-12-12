@@ -186,7 +186,7 @@
 
 <div class="directory-grid">
     {% for dir in directories %}
-    <div class="directory-card" onclick="window.location.href='/scan/{{ dir.directory }}'">
+    <div class="directory-card" onclick="window.location.href='/scan/{{ dir.directory | b64encode }}'">
         <div class="directory-header">
             <div class="directory-icon">📁</div>
             <div class="directory-info">
