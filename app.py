@@ -6,6 +6,7 @@ A companion app for minidlna to manage movie cover artwork.
 import os
 import re
 import argparse
+import base64
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict
 from datetime import datetime
@@ -492,6 +493,10 @@ tmdb_client = TMDBClient(
     config.tmdb_locale
 )
 
+@app.template_filter('b64encode')
+def b64encode_filter(s):
+    return base64.urlsafe_b64encode(s.encode()).decode()
+
 @app.route('/')
 def index():
     """Main page - directory listing."""
@@ -510,6 +515,13 @@ def index():
 @app.route('/scan/<path:directory>')
 def scan_directory(directory):
     """Scan directory and show movies without covers."""
+    # Try to decode base64 if needed
+    try:
+        decoded_dir = base64.urlsafe_b64decode(directory).decode('utf-8')
+        if decoded_dir in config.media_directories:
+            directory = decoded_dir
+    except Exception:
+        pass
     # Validate directory is in config
     if directory not in config.media_directories:
         return "Directory not allowed", 403
