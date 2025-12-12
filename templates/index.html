@@ -207,7 +207,7 @@
                     <circle class="progress-fill {% if dir.missing_covers == 0 %}complete{% endif %}" 
                             cx="32" cy="32" r="28"
                             stroke-dasharray="176"
-                            stroke-dashoffset="{{ 176 - (176 * (dir.missing_covers / dir.total_files) if dir.total_files > 0 else 0) }}">
+                            stroke-dashoffset="{{0 if dir.total_files == None else 176 - (176 * (dir.missing_covers / dir.total_files) if dir.total_files > 0 else 0) }}">
                     </circle>
                 </svg>
             </div>
@@ -215,11 +215,11 @@
 
         <div class="directory-stats">
             <div class="stat">
-                <div class="stat-value">{{ dir.total_files }}</div>
+                <div class="stat-value">{{ 'Counting...' if dir.total_files == None else dir.total_files }}</div>
                 <div class="stat-label">Total Files</div>
             </div>
             <div class="stat">
-                <div class="stat-value missing-count">{{ dir.missing_covers }}</div>
+                <div class="stat-value missing-count">{{ 'Counting...' if dir.missing_covers == None else dir.missing_covers }}</div>
                 <div class="stat-label">Missing Covers</div>
             </div>
         </div>
@@ -235,6 +235,10 @@
         {% elif dir.status == 'error' %}
         <div class="status-badge status-error">
             ✗ Error: {{ dir.error }}
+        </div>
+        {% elif dir.status == 'refreshing' %}
+        <div class="status-badge status-action">
+            ⏳​ Refreshing...
         </div>
         {% endif %}
 
