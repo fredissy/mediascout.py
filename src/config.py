@@ -55,7 +55,7 @@ class Config:
             errors.append("No TMDB API key specified")
 
         # Validate TMDB locale format (should be like en-US, fr-FR, de-DE, etc.)
-        locale_pattern = re.compile(r'^[a-z]{2}-[A-Z]{2}')
+        locale_pattern = re.compile(r'^[a-z]{2}-[A-Z]{2}$')
 
         if not locale_pattern.match(self.tmdb_locale):
             errors.append(f"Invalid TMDB locale format: '{self.tmdb_locale}'. Expected format: 'en-US', 'fr-FR', 'de-DE', etc.")
