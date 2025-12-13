@@ -215,11 +215,11 @@
 
         <div class="directory-stats">
             <div class="stat">
-                <div class="stat-value">{{ 'Counting...' if dir.total_files == None else dir.total_files }}</div>
+                <div class="stat-value">{{ '-' if dir.total_files == None else dir.total_files }}</div>
                 <div class="stat-label">Total Files</div>
             </div>
             <div class="stat">
-                <div class="stat-value missing-count">{{ 'Counting...' if dir.missing_covers == None else dir.missing_covers }}</div>
+                <div class="stat-value missing-count">{{ '-' if dir.missing_covers == None else dir.missing_covers }}</div>
                 <div class="stat-label">Missing Covers</div>
             </div>
         </div>
