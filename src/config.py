@@ -66,7 +66,6 @@ class Config:
         if args.tmdb_locale:
             self.tmdb_locale = args.tmdb_locale.strip()
         
-        print(args)
         # Authentication command line arguments
         if hasattr(args, 'auth_enabled') and args.auth_enabled is not None:
             self.auth_enabled = args.auth_enabled
@@ -82,7 +81,7 @@ class Config:
             self.session_secret = args.session_secret
 
         if not self.ldap_user_dn_template and self.ldap_base_dn:
-                    self.ldap_user_dn_template = f'uid={{username}},ou=people,{self.ldap_base_dn}'
+            self.ldap_user_dn_template = f'uid={{username}},ou=people,{self.ldap_base_dn}'
 
     def validate(self):
         """Validate that all required configuration is present."""

@@ -46,9 +46,7 @@ class LDAPAuth:
         try:
             # Build user DN
             user_dn = self.config.ldap_user_dn_template.format(username=username)
-            print("config", repr(self.config))
-            print("Attempting LDAP bind for user DN:", user_dn)
-            
+
             # Connect to LDAP server
             server = Server(
                 self.config.ldap_server,

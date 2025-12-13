@@ -9,13 +9,14 @@ import argparse
 import sys
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
-from flask_login import login_user, logout_user, login_required
+from flask_login import login_user, logout_user, login_required, current_user
 
 from src.config import Config
 from src.tmdb import TMDBClient
 from src.image import ImageProcessor
 from src.scanner import FileScanner, DirectoryStatsCache
-from src.auth import setup_auth, auth_required, User
+from src.auth import setup_auth, auth_required
+from src.utils import is_absolute
 
 # ============================================================================
 # Flask Application
@@ -79,7 +80,6 @@ def login():
     if not config.auth_enabled:
         return redirect(url_for('index'))
     
-    from flask_login import current_user
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     
@@ -92,7 +92,7 @@ def login():
         if user:
             login_user(user)
             next_page = request.args.get('next')
-            return redirect(next_page if next_page else url_for('index'))
+            return redirect(next_page if (next_page and not is_absolute(next_page)) else url_for('index'))
         else:
             error = 'Invalid username or password'
     
