@@ -16,6 +16,16 @@ class Config:
         self.tmdb_locale: str = "en-US"
         self.tmdb_base_url = "https://api.themoviedb.org/3"
         self.tmdb_image_base = "https://image.tmdb.org/t/p"
+        
+        # Authentication settings
+        self.auth_enabled: bool = False
+        self.ldap_server: str = ""
+        self.ldap_port: int = 389
+        self.ldap_use_ssl: bool = False
+        self.ldap_base_dn: str = ""
+        self.ldap_user_dn_template: str = ""
+        self.ldap_search_filter: str = ""
+        self.session_secret: str = ""
 
     def load_from_env(self):
         """Load configuration from environment variables."""
@@ -32,6 +42,18 @@ class Config:
         locale = os.getenv('TMDB_LOCALE', 'en-US')
         if locale:
             self.tmdb_locale = locale.strip()
+        
+        # Authentication environment variables
+        self.auth_enabled = os.getenv('AUTH_ENABLED', 'false').lower() == 'true'
+        self.ldap_server = os.getenv('LDAP_SERVER', '')
+        self.ldap_port = int(os.getenv('LDAP_PORT', '389'))
+        self.ldap_use_ssl = os.getenv('LDAP_USE_SSL', 'false').lower() == 'true'
+        self.ldap_base_dn = os.getenv('LDAP_BASE_DN', '')
+        self.ldap_user_dn_template = os.getenv('LDAP_USER_DN_TEMPLATE', '')
+        self.ldap_search_filter = os.getenv('LDAP_SEARCH_FILTER', '(uid={username})')
+        self.session_secret = os.getenv('SESSION_SECRET', '')
+        if not self.session_secret and self.auth_enabled:
+            self.session_secret = os.urandom(24).hex()
 
     def load_from_args(self, args):
         """Load configuration from command line arguments."""
@@ -43,6 +65,24 @@ class Config:
             self.tmdb_api_key = args.tmdb_key
         if args.tmdb_locale:
             self.tmdb_locale = args.tmdb_locale.strip()
+        
+        print(args)
+        # Authentication command line arguments
+        if hasattr(args, 'auth_enabled') and args.auth_enabled is not None:
+            self.auth_enabled = args.auth_enabled
+        if hasattr(args, 'ldap_server') and args.ldap_server:
+            self.ldap_server = args.ldap_server
+        if hasattr(args, 'ldap_port') and args.ldap_port:
+            self.ldap_port = args.ldap_port
+        if hasattr(args, 'ldap_use_ssl') and args.ldap_use_ssl is not None:
+            self.ldap_use_ssl = args.ldap_use_ssl
+        if hasattr(args, 'ldap_base_dn') and args.ldap_base_dn:
+            self.ldap_base_dn = args.ldap_base_dn
+        if hasattr(args, 'session_secret') and args.session_secret:
+            self.session_secret = args.session_secret
+
+        if not self.ldap_user_dn_template and self.ldap_base_dn:
+                    self.ldap_user_dn_template = f'uid={{username}},ou=people,{self.ldap_base_dn}'
 
     def validate(self):
         """Validate that all required configuration is present."""
@@ -65,5 +105,14 @@ class Config:
                 errors.append(f"Directory does not exist: {directory}")
             elif not os.path.isdir(directory):
                 errors.append(f"Not a directory: {directory}")
+        
+        # Validate authentication config if enabled
+        if self.auth_enabled:
+            if not self.ldap_server:
+                errors.append("AUTH_ENABLED is true but LDAP_SERVER is not specified")
+            if not self.ldap_base_dn:
+                errors.append("AUTH_ENABLED is true but LDAP_BASE_DN is not specified")
+            if not self.session_secret:
+                errors.append("AUTH_ENABLED is true but SESSION_SECRET is not specified")
 
         return errors

@@ -9,11 +9,13 @@ import argparse
 import sys
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask_login import login_user, logout_user, login_required
 
 from src.config import Config
 from src.tmdb import TMDBClient
 from src.image import ImageProcessor
 from src.scanner import FileScanner, DirectoryStatsCache
+from src.auth import setup_auth, auth_required, User
 
 # ============================================================================
 # Flask Application
@@ -45,6 +47,9 @@ tmdb_client = TMDBClient(
     config.tmdb_locale
 )
 
+# 4. Setup authentication
+ldap_auth = setup_auth(app, config)
+
 # --------------------------------------------------------------------------
 # Background cache of directory stats
 # --------------------------------------------------------------------------
@@ -64,7 +69,51 @@ for d in config.media_directories:
 def b64encode_filter(s):
     return base64.urlsafe_b64encode(s.encode()).decode()
 
+# ============================================================================
+# Authentication Routes
+# ============================================================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page and handler."""
+    if not config.auth_enabled:
+        return redirect(url_for('index'))
+    
+    from flask_login import current_user
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        user = ldap_auth.authenticate(username, password)
+        if user:
+            login_user(user)
+            next_page = request.args.get('next')
+            return redirect(next_page if next_page else url_for('index'))
+        else:
+            error = 'Invalid username or password'
+    
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Logout handler."""
+    logout_user()
+    return redirect(url_for('login'))
+
+# ============================================================================
+# Main Application Routes
+# ============================================================================
+
+# Create decorator instance
+auth_decorator = auth_required(config)
+
 @app.route('/')
+@auth_decorator
 def index():
     """Main page - directory listing."""
     directories = []
@@ -80,6 +129,7 @@ def index():
                            success_message=success_msg)
 
 @app.route('/scan/<path:directory>')
+@auth_decorator
 def scan_directory(directory):
     """Scan directory and show movies without covers."""
     # Try to decode base64 if needed
@@ -101,6 +151,7 @@ def scan_directory(directory):
     return render_template('scan.html', result=scan_result)
 
 @app.route('/api/search-movie', methods=['POST'])
+@auth_decorator
 def search_movie():
     """API endpoint to search TMDB for a movie."""
     data = request.json
@@ -114,6 +165,7 @@ def search_movie():
     return jsonify(result)
 
 @app.route('/api/save-covers', methods=['POST'])
+@auth_decorator
 def save_covers():
     """API endpoint to download and save selected covers."""
     data = request.json
@@ -152,6 +204,15 @@ def main():
     parser.add_argument('--extensions', help='Comma-separated list of file extensions')
     parser.add_argument('--tmdb-key', help='TMDB API key')
     parser.add_argument('--tmdb-locale', help='TMDB locale for movie info (e.g., en-US, fr-FR, de-DE)', default='en-US')
+    
+    # Authentication arguments
+    parser.add_argument('--auth-enabled', action='store_true', help='Enable LDAP authentication')
+    parser.add_argument('--ldap-server', help='LDAP server hostname or IP')
+    parser.add_argument('--ldap-port', type=int, help='LDAP server port (default: 389)')
+    parser.add_argument('--ldap-use-ssl', action='store_true', help='Use LDAPS (SSL/TLS)')
+    parser.add_argument('--ldap-base-dn', help='LDAP base DN (e.g., dc=example,dc=com)')
+    parser.add_argument('--session-secret', help='Secret key for session encryption')
+    
     parser.add_argument('--port', type=int, default=8000, help='Port to run on (default: 8000)')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     
@@ -172,22 +233,29 @@ def main():
         print(" FILE_EXTENSIONS=mkv,mp4,avi")
         print(" TMDB_API_KEY=your_key")
         print(" TMDB_LOCALE=en-US (or fr-FR, de-DE, etc.)")
+        print("\nAuthentication (optional):")
+        print(" AUTH_ENABLED=true")
+        print(" LDAP_SERVER=ldap.example.com")
+        print(" LDAP_BASE_DN=dc=example,dc=com")
+        print(" SESSION_SECRET=your_secret")
         print("\nCommand line:")
         print(" --directories /path1,/path2")
         print(" --extensions mkv,mp4,avi")
         print(" --tmdb-key your_key")
         print(" --tmdb-locale en-US")
+        print(" --auth-enabled --ldap-server ldap.example.com --ldap-base-dn dc=example,dc=com")
         return
 
-    # Re-initialize TMDBClient because it stores strings (api_key) internally
-    # that might have changed if command line args were used.
-    global tmdb_client
+    # Re-initialize TMDBClient and auth because config might have changed
+    global tmdb_client, ldap_auth
     tmdb_client = TMDBClient(
         config.tmdb_api_key,
         config.tmdb_base_url,
         config.tmdb_image_base,
         config.tmdb_locale
     )
+    
+    ldap_auth = setup_auth(app, config)
 
     # Run Flask app
     print(f"\n✓ Mediascout starting on http://{args.host}:{args.port}")

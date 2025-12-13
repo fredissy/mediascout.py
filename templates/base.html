@@ -1,3 +1,4 @@
+<!-- templates/base.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -160,6 +161,17 @@
             </div>
         </div>
         <div style="display: flex; align-items: center; gap: 1rem;">
+            {% if current_user and current_user.is_authenticated %}
+            <span style="color: white; font-size: 0.875rem;">
+                👤 {{ current_user.display_name }}
+            </span>
+            <a href="{{ url_for('logout') }}" 
+               style="color: white; text-decoration: none; padding: 0.5rem 1rem; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.875rem; transition: background 0.2s;"
+               onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+               onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                Logout
+            </a>
+            {% endif %}
             <span class="version">v1.0.0</span>
             <button class="settings-btn" onclick="alert('Settings coming soon!')">⚙️</button>
         </div>
