@@ -203,7 +203,7 @@ def main():
     parser.add_argument('--directories', help='Comma-separated list of media directories')
     parser.add_argument('--extensions', help='Comma-separated list of file extensions')
     parser.add_argument('--tmdb-key', help='TMDB API key')
-    parser.add_argument('--tmdb-locale', help='TMDB locale for movie info (e.g., en-US, fr-FR, de-DE)', default='en-US')
+    parser.add_argument('--tmdb-locale', help='TMDB locale for movie info (e.g., en-US, fr-FR, de-DE)')
     
     # Authentication arguments
     parser.add_argument('--auth-enabled', action='store_true', help='Enable LDAP authentication')
@@ -213,12 +213,18 @@ def main():
     parser.add_argument('--ldap-base-dn', help='LDAP base DN (e.g., dc=example,dc=com)')
     parser.add_argument('--session-secret', help='Secret key for session encryption')
     
+    parser.add_argument('--config', help='Path to JSON configuration file')
+
     parser.add_argument('--port', type=int, default=8000, help='Port to run on (default: 8000)')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     
     args = parser.parse_args()
 
     ## config.load_from_env() has already run at module level :
+
+    if args.config:
+        config.load_from_json(args.config)
+
     config.load_from_args(args)
 
     # Validate configuration

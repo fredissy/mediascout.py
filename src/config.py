@@ -4,6 +4,7 @@ Configuration module for Mediascout.
 
 import os
 import re
+import json
 from typing import List
 
 class Config:
@@ -54,6 +55,58 @@ class Config:
         self.session_secret = os.getenv('SESSION_SECRET', '')
         if not self.session_secret and self.auth_enabled:
             self.session_secret = os.urandom(24).hex()
+
+    def load_from_json(self, json_path):
+        """Load configuration from a JSON file."""
+        if not os.path.exists(json_path):
+            print(f"Config file not found: {json_path}")
+            return
+
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+
+            if 'media_directories' in data:
+                self.media_directories = data['media_directories']
+
+            if 'file_extensions' in data:
+                self.file_extensions = [e.lower() for e in data['file_extensions']]
+
+            if 'tmdb_api_key' in data:
+                self.tmdb_api_key = data['tmdb_api_key']
+
+            if 'tmdb_locale' in data:
+                self.tmdb_locale = data['tmdb_locale']
+
+            # Authentication settings
+            if 'auth_enabled' in data:
+                self.auth_enabled = data['auth_enabled']
+
+            if 'ldap_server' in data:
+                self.ldap_server = data['ldap_server']
+
+            if 'ldap_port' in data:
+                self.ldap_port = data['ldap_port']
+
+            if 'ldap_use_ssl' in data:
+                self.ldap_use_ssl = data['ldap_use_ssl']
+
+            if 'ldap_base_dn' in data:
+                self.ldap_base_dn = data['ldap_base_dn']
+
+            if 'ldap_user_dn_template' in data:
+                self.ldap_user_dn_template = data['ldap_user_dn_template']
+
+            if 'ldap_search_filter' in data:
+                self.ldap_search_filter = data['ldap_search_filter']
+
+            if 'session_secret' in data:
+                self.session_secret = data['session_secret']
+
+        except json.JSONDecodeError:
+            print(f"Error decoding JSON from {json_path}")
+        except Exception as e:
+            print(f"Error loading config from {json_path}: {e}")
 
     def load_from_args(self, args):
         """Load configuration from command line arguments."""
