@@ -219,13 +219,14 @@ def main():
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     
     args = parser.parse_args()
-
-    ## config.load_from_env() has already run at module level :
-
     if args.config:
-        config.load_from_json(args.config)
+        try:
+            config.load_from_json(args.config)
+        except Exception as e:
+            print(f"Error loading configuration from JSON file '{args.config}': {e}", file=sys.stderr)
+            sys.exit(1)
 
-    config.load_from_args(args)
+    #config.load_from_args(args)
 
     # Validate configuration
     errors = config.validate()

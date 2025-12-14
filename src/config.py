@@ -63,48 +63,57 @@ class Config:
             return
 
         try:
-            with open(json_path, 'r') as f:
+            with open(json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
-            if 'media_directories' in data:
-                self.media_directories = data['media_directories']
+                field_map = [
+                    ("media_directories", "media_directories"),
+                    ("file_extensions", "file_extensions"),
+                    ("tmdb_api_key", "tmdb_api_key"),
+                    ("tmdb_locale", "tmdb_locale"),
+                    ("auth_enabled", "auth_enabled"),
+                    ("ldap_server", "ldap_server"),
+                    ("ldap_port", "ldap_port"),
+                    ("ldap_use_ssl", "ldap_use_ssl"),
+                    ("ldap_base_dn", "ldap_base_dn"),
+                    ("ldap_user_dn_template", "ldap_user_dn_template"),
+                    ("ldap_search_filter", "ldap_search_filter"),
+                    ("session_secret", "session_secret")
+                ]
+                for attr, key in field_map:
+                    if key in data:
+                        if attr == "ldap_port":
+                            try:
+                                setattr(self, attr, int(data[key]))
+                            except (ValueError, TypeError):
+                                print(f"Invalid LDAP_PORT in config, using default 389")
+                                setattr(self, attr, 389)
+                        elif attr == "auth_enabled" or attr == "ldap_use_ssl":
+                            val = data[key]
+                            if( isinstance(val, bool) ):
+                                setattr(self, attr, val)
+                            elif( isinstance(val, str) ):
+                                setattr(self, attr, val.lower() == 'true')
+                            else:
+                                setattr(self, attr, False)
+                            print("self.auth_enabled", self.auth_enabled)
+                        elif attr == "media_directories":
+                            if isinstance(data[key], str):
+                                setattr(self, attr, [str(d).strip() for d in data[key].split(",") if isinstance(d, str)])
+                            else:
+                                print("Warning: 'media_directories' in config JSON is not a list. Skipping this field.")
+                        elif attr == "file_extensions":
+                            if isinstance(data[key], str):
+                                setattr(self, attr, [str(e).strip().lower() for e in data[key].split(",") if isinstance(e, str)])
+                            else:
+                                print("Warning: 'file_extensions' in config JSON is not a list. Skipping this field.")
+                        else:
+                            setattr(self, attr, data[key])
 
-            if 'file_extensions' in data:
-                self.file_extensions = [e.lower() for e in data['file_extensions']]
-
-            if 'tmdb_api_key' in data:
-                self.tmdb_api_key = data['tmdb_api_key']
-
-            if 'tmdb_locale' in data:
-                self.tmdb_locale = data['tmdb_locale']
-
-            # Authentication settings
-            if 'auth_enabled' in data:
-                self.auth_enabled = data['auth_enabled']
-
-            if 'ldap_server' in data:
-                self.ldap_server = data['ldap_server']
-
-            if 'ldap_port' in data:
-                self.ldap_port = data['ldap_port']
-
-            if 'ldap_use_ssl' in data:
-                self.ldap_use_ssl = data['ldap_use_ssl']
-
-            if 'ldap_base_dn' in data:
-                self.ldap_base_dn = data['ldap_base_dn']
-
-            if 'ldap_user_dn_template' in data:
-                self.ldap_user_dn_template = data['ldap_user_dn_template']
-
-            if 'ldap_search_filter' in data:
-                self.ldap_search_filter = data['ldap_search_filter']
-
-            if 'session_secret' in data:
-                self.session_secret = data['session_secret']
-
-        except json.JSONDecodeError:
-            print(f"Error decoding JSON from {json_path}")
+            if not self.ldap_user_dn_template and self.ldap_base_dn:
+                self.ldap_user_dn_template = f'uid={{username}},ou=people,{self.ldap_base_dn}'
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON from {json_path}: {e.msg} (line {e.lineno}, column {e.colno})")
         except Exception as e:
             print(f"Error loading config from {json_path}: {e}")
 
