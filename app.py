@@ -220,13 +220,9 @@ def main():
     
     args = parser.parse_args()
     if args.config:
-        try:
-            config.load_from_json(args.config)
-        except Exception as e:
-            print(f"Error loading configuration from JSON file '{args.config}': {e}", file=sys.stderr)
-            sys.exit(1)
+        config.load_from_json(args.config)
 
-    #config.load_from_args(args)
+    config.load_from_args(args)
 
     # Validate configuration
     errors = config.validate()
@@ -254,15 +250,18 @@ def main():
         return
 
     # Re-initialize TMDBClient and auth because config might have changed
-    global tmdb_client, ldap_auth
+    global tmdb_client, ldap_auth, scanner, stats_cache
     tmdb_client = TMDBClient(
         config.tmdb_api_key,
         config.tmdb_base_url,
         config.tmdb_image_base,
         config.tmdb_locale
     )
+    max_workers = max(1, min(8, len(config.media_directories) or 1))
     
     ldap_auth = setup_auth(app, config)
+    scanner = FileScanner(config)
+    stats_cache = DirectoryStatsCache(scanner, max_workers=max_workers)
 
     # Run Flask app
     print(f"\n✓ Mediascout starting on http://{args.host}:{args.port}")
@@ -271,6 +270,8 @@ def main():
     print(f"✓ TMDB Locale: {config.tmdb_locale}\n")
     
     app.run(host=args.host, port=args.port, debug=True)
+
+
 
 if __name__ == '__main__':
     main()

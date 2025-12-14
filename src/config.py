@@ -59,56 +59,60 @@ class Config:
     def load_from_json(self, json_path):
         """Load configuration from a JSON file."""
         if not os.path.exists(json_path):
-            print(f"Config file not found: {json_path}")
-            return
+            raise FileNotFoundError(f"Config file not found: {json_path}")
 
         try:
             with open(json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
-                field_map = [
-                    ("media_directories", "media_directories"),
-                    ("file_extensions", "file_extensions"),
-                    ("tmdb_api_key", "tmdb_api_key"),
-                    ("tmdb_locale", "tmdb_locale"),
-                    ("auth_enabled", "auth_enabled"),
-                    ("ldap_server", "ldap_server"),
-                    ("ldap_port", "ldap_port"),
-                    ("ldap_use_ssl", "ldap_use_ssl"),
-                    ("ldap_base_dn", "ldap_base_dn"),
-                    ("ldap_user_dn_template", "ldap_user_dn_template"),
-                    ("ldap_search_filter", "ldap_search_filter"),
-                    ("session_secret", "session_secret")
+                field_names = [
+                    "media_directories",
+                    "file_extensions",
+                    "tmdb_api_key",
+                    "tmdb_locale",
+                    "auth_enabled",
+                    "ldap_server",
+                    "ldap_port",
+                    "ldap_use_ssl",
+                    "ldap_base_dn",
+                    "ldap_user_dn_template",
+                    "ldap_search_filter",
+                    "session_secret"
                 ]
-                for attr, key in field_map:
-                    if key in data:
+                for attr in field_names:
+                    if attr in data:
                         if attr == "ldap_port":
                             try:
-                                setattr(self, attr, int(data[key]))
+                                setattr(self, attr, int(data[attr]))
                             except (ValueError, TypeError):
                                 print(f"Invalid LDAP_PORT in config, using default 389")
                                 setattr(self, attr, 389)
                         elif attr == "auth_enabled" or attr == "ldap_use_ssl":
-                            val = data[key]
+                            val = data[attr]
                             if( isinstance(val, bool) ):
                                 setattr(self, attr, val)
                             elif( isinstance(val, str) ):
                                 setattr(self, attr, val.lower() == 'true')
                             else:
                                 setattr(self, attr, False)
-                            print("self.auth_enabled", self.auth_enabled)
                         elif attr == "media_directories":
-                            if isinstance(data[key], str):
-                                setattr(self, attr, [str(d).strip() for d in data[key].split(",") if isinstance(d, str)])
+                            val = data[attr]
+                            if isinstance(val, str):
+                                setattr(self, attr, [d.strip() for d in val.split(",")])
+                            elif isinstance(val, list):
+                                setattr(self, attr, [str(d).strip() for d in val if isinstance(d, str)])
                             else:
-                                print("Warning: 'media_directories' in config JSON is not a list. Skipping this field.")
+                                print("Warning: 'media_directories' in config JSON should be a string or a list of strings. Skipping this field.")
                         elif attr == "file_extensions":
-                            if isinstance(data[key], str):
-                                setattr(self, attr, [str(e).strip().lower() for e in data[key].split(",") if isinstance(e, str)])
+                            val = data[attr]
+                            if isinstance(val, str):
+                                setattr(self, attr, [e.strip().lower() for e in val.split(",")])
+                            elif isinstance(val, list):
+                                setattr(self, attr, [str(e).strip().lower() for e in val if isinstance(e, str)])
                             else:
-                                print("Warning: 'file_extensions' in config JSON is not a list. Skipping this field.")
+                                print("Warning: 'file_extensions' in config JSON should be a string or a list of strings. Skipping this field.")
                         else:
-                            setattr(self, attr, data[key])
+                            setattr(self, attr, data[attr])
 
             if not self.ldap_user_dn_template and self.ldap_base_dn:
                 self.ldap_user_dn_template = f'uid={{username}},ou=people,{self.ldap_base_dn}'
@@ -129,8 +133,6 @@ class Config:
             self.tmdb_locale = args.tmdb_locale.strip()
         
         # Authentication command line arguments
-        if hasattr(args, 'auth_enabled') and args.auth_enabled is not None:
-            self.auth_enabled = args.auth_enabled
         if hasattr(args, 'ldap_server') and args.ldap_server:
             self.ldap_server = args.ldap_server
         if hasattr(args, 'ldap_port') and args.ldap_port:
