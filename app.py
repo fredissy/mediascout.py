@@ -150,6 +150,16 @@ def scan_directory(directory):
     
     return render_template('scan.html', result=scan_result)
 
+@app.route('/api/get-movie-details/<int:movie_id>', methods=['GET'])
+@auth_decorator
+def get_movie_details(movie_id):
+    """
+    API endpoint to get detailed information for a specific movie.
+    Used when user selects an alternative match.
+    """
+    result = tmdb_client.get_movie_details(movie_id)
+    return jsonify(result)
+
 @app.route('/api/search-movie', methods=['POST'])
 @auth_decorator
 def search_movie():
