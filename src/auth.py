@@ -71,22 +71,41 @@ class LDAPAuth:
                     return str(entry.displayName)
                 elif hasattr(entry, 'cn') and entry.cn:
                     return str(entry.cn)
-                elif (
-                    ('given_name' in display_name_attributes and hasattr(entry, 'given_name')) or
-                    ('givenName' in display_name_attributes and hasattr(entry, 'givenName'))
-                ) and (
-                    ('sn' in display_name_attributes and hasattr(entry, 'sn')) or
-                    ('surname' in display_name_attributes and hasattr(entry, 'surname'))
-                ):
-                    given_name = str(getattr(entry, 'given_name', getattr(entry, 'givenName', '')))
-                    sn = str(getattr(entry, 'sn', getattr(entry, 'surname', '')))
+                else:
+                    # Build full name from given name and surname variants, if available
+                    given_name = ""
+                    if (
+                        'given_name' in display_name_attributes
+                        and hasattr(entry, 'given_name')
+                        and entry.given_name
+                    ):
+                        given_name = str(entry.given_name)
+                    elif (
+                        'givenName' in display_name_attributes
+                        and hasattr(entry, 'givenName')
+                        and entry.givenName
+                    ):
+                        given_name = str(entry.givenName)
+                    sn = ""
+                    if (
+                        'sn' in display_name_attributes
+                        and hasattr(entry, 'sn')
+                        and entry.sn
+                    ):
+                        sn = str(entry.sn)
+                    elif (
+                        'surname' in display_name_attributes
+                        and hasattr(entry, 'surname')
+                        and entry.surname
+                    ):
+                        sn = str(entry.surname)
                     if given_name and sn:
                         return f"{given_name} {sn}"
             
         except LDAPException as e:
             # We don't want to propagate this error, but log it for debugging
             print(f"LDAP search for display name failed: {e}")
-            pass # Continue to try next attribute set or default to None
+            # Continue to try next attribute set or default to None
             
         return None
     
