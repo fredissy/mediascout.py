@@ -2,11 +2,13 @@
 Authentication module for Mediascout with LDAP support.
 """
 
-from typing import Optional
+from typing import Optional, List
 from functools import wraps
 from flask import redirect, url_for, request
 from flask_login import LoginManager, UserMixin, current_user
 from ldap3 import Server, Connection, ALL, SIMPLE
+from ldap3.core.exceptions import (LDAPException)
+
 
 # ============================================================================
 # User Model
@@ -32,6 +34,61 @@ class LDAPAuth:
     
     def __init__(self, config):
         self.config = config
+    
+    def _search_and_extract_display_name(
+        self,
+        conn: Connection,
+        username: str,
+        display_name_attributes: List[str]
+    ) -> Optional[str]:
+        """
+        Helper to search for user entry and extract a display name.
+        
+        Args:
+            conn: An active LDAP connection object.
+            username: The username to search for.
+            display_name_attributes: A list of attributes to request and check for display name.
+        
+        Returns:
+            The extracted display name, or None if search fails or no suitable attribute is found.
+        """
+        search_filter = self.config.ldap_search_filter.format(username=username)
+        
+        try:
+            conn.search(
+                search_base=self.config.ldap_base_dn,
+                search_filter=search_filter,
+                attributes=display_name_attributes
+            )
+            
+            if conn.entries:
+                entry = conn.entries[0]
+                
+                # Check for specific attributes in order of preference
+                if 'display_name' in display_name_attributes and hasattr(entry, 'display_name') and entry.display_name:
+                    return str(entry.display_name)
+                elif 'displayName' in display_name_attributes and hasattr(entry, 'displayName') and entry.displayName:
+                    return str(entry.displayName)
+                elif hasattr(entry, 'cn') and entry.cn:
+                    return str(entry.cn)
+                elif (
+                    ('given_name' in display_name_attributes and hasattr(entry, 'given_name')) or
+                    ('givenName' in display_name_attributes and hasattr(entry, 'givenName'))
+                ) and (
+                    ('sn' in display_name_attributes and hasattr(entry, 'sn')) or
+                    ('surname' in display_name_attributes and hasattr(entry, 'surname'))
+                ):
+                    given_name = str(getattr(entry, 'given_name', getattr(entry, 'givenName', '')))
+                    sn = str(getattr(entry, 'sn', getattr(entry, 'surname', '')))
+                    if given_name and sn:
+                        return f"{given_name} {sn}"
+            
+        except LDAPException as e:
+            # We don't want to propagate this error, but log it for debugging
+            print(f"LDAP search for display name failed: {e}")
+            pass # Continue to try next attribute set or default to None
+            
+        return None
     
     def authenticate(self, username: str, password: str) -> Optional[User]:
         """
@@ -65,59 +122,22 @@ class LDAPAuth:
             )
             
             if conn.bound:
-                # Search for user to get display name
-                search_filter = self.config.ldap_search_filter.format(username=username)
-                
-                # Try to search with both old and new attribute names
-                # First try LLDAP 0.6.x naming (underscore)
                 display_name = username
-                search_successful = False
                 
-                try:
-                    conn.search(
-                        search_base=self.config.ldap_base_dn,
-                        search_filter=search_filter,
-                        attributes=['cn', 'display_name', 'given_name', 'sn', 'surname']
-                    )
-                    search_successful = True
-                    
-                    if conn.entries:
-                        entry = conn.entries[0]
-                        # LLDAP 0.6.x attributes
-                        if hasattr(entry, 'display_name') and entry.display_name:
-                            display_name = str(entry.display_name)
-                        elif hasattr(entry, 'cn') and entry.cn:
-                            display_name = str(entry.cn)
-                        elif hasattr(entry, 'given_name') and hasattr(entry, 'sn'):
-                            display_name = f"{entry.given_name} {entry.sn}"
-                        elif hasattr(entry, 'given_name') and hasattr(entry, 'surname'):
-                            display_name = f"{entry.given_name} {entry.surname}"
+                # 1. Try LLDAP 0.6.x naming (underscore)
+                attributes_underscore = ['cn', 'display_name', 'given_name', 'sn', 'surname']
+                extracted_name = self._search_and_extract_display_name(conn, username, attributes_underscore)
                 
-                except Exception as e:
-                    # If LLDAP 0.6.x attributes fail, try LLDAP 0.5.x (camelCase)
-                    try:
-                        conn.search(
-                            search_base=self.config.ldap_base_dn,
-                            search_filter=search_filter,
-                            attributes=['cn', 'displayName', 'givenName', 'sn']
-                        )
-                        search_successful = True
-                        
-                        if conn.entries:
-                            entry = conn.entries[0]
-                            # LLDAP 0.5.x attributes
-                            if hasattr(entry, 'displayName') and entry.displayName:
-                                display_name = str(entry.displayName)
-                            elif hasattr(entry, 'cn') and entry.cn:
-                                display_name = str(entry.cn)
-                            elif hasattr(entry, 'givenName') and hasattr(entry, 'sn'):
-                                display_name = f"{entry.givenName} {entry.sn}"
-                    
-                    except Exception as e2:
-                        # If both fail, just use username
-                        print(f"Warning: Could not retrieve display name attributes: {e2}")
-                        display_name = username
-                
+                if extracted_name is None:
+                    # 2. Try LLDAP 0.5.x naming (camelCase)
+                    attributes_camelcase = ['cn', 'displayName', 'givenName', 'sn']
+                    extracted_name = self._search_and_extract_display_name(conn, username, attributes_camelcase)
+
+                if extracted_name:
+                    display_name = extracted_name
+                else:
+                    print("Warning: Could not retrieve display name attributes, defaulting to username.")
+
                 conn.unbind()
                 return User(username, display_name)
             
