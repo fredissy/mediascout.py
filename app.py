@@ -157,6 +157,9 @@ def get_movie_details(movie_id):
     API endpoint to get detailed information for a specific movie.
     Used when user selects an alternative match.
     """
+    if isinstance(movie_id, int) is False or movie_id <= 0:
+        return jsonify({'success': False, 'error': 'Invalid movie ID'})
+
     result = tmdb_client.get_movie_details(movie_id)
     return jsonify(result)
 

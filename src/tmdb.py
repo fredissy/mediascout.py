@@ -1,6 +1,5 @@
 """
 Enhanced TMDB Client with alternative matches support
-Update your src/tmdb.py with these changes
 """
 
 from typing import Dict, List, Optional
@@ -115,12 +114,17 @@ class TMDBClient:
                 'movie': movie_data
             }
         
+        except requests.exceptions.RequestException as e:
+            return {
+                'success': False,
+                'error': f'TMDB API error: {str(e)}'
+            }
         except Exception as e:
             return {
                 'success': False,
-                'error': f'Failed to get movie details: {str(e)}'
+                'error': f'Unexpected error: {str(e)}'
             }
-    
+
     def _format_movie(self, movie: Dict) -> Dict:
         """Format movie data into consistent structure."""
         return {
