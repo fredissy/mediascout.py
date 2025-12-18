@@ -624,6 +624,10 @@ async function selectAlternative(movieId, tmdbId) {
                         </div>
                     </div>
                     <div style="margin-top: 0.5rem; padding: 0.5rem; background: #d1fae5; border-radius: 6px; font-size: 0.875rem; color: #065f46;">
+                    <div style="margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                        <strong>Select a cover:</strong>
+                        <button class="skip-button" onclick="skipMovie(${movieId})">Skip this movie</button>
+                    </div>
                 ${
                     Array.isArray(result.movie.posters) && result.movie.posters.length > 0
                     ? `<div class="poster-grid" id="poster-grid-${movieId}">
