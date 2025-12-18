@@ -7,6 +7,7 @@ import os
 import base64
 import argparse
 import sys
+import html
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_login import login_user, logout_user, login_required, current_user
@@ -149,6 +150,19 @@ def scan_directory(directory):
         return render_template('error.html', error=scan_result['error'])
     
     return render_template('scan.html', result=scan_result)
+
+@app.route('/api/get-movie-details/<int:movie_id>', methods=['GET'])
+@auth_decorator
+def get_movie_details(movie_id):
+    """
+    API endpoint to get detailed information for a specific movie.
+    Used when user selects an alternative match.
+    """
+    if movie_id <= 0:
+        return jsonify({'success': False, 'error': 'Invalid movie ID'})
+
+    result = tmdb_client.get_movie_details(movie_id)
+    return jsonify(result)
 
 @app.route('/api/search-movie', methods=['POST'])
 @auth_decorator
