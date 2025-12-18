@@ -8,8 +8,9 @@ import base64
 import argparse
 import sys
 import html
+import requests
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 
 from src.config import Config
@@ -122,12 +123,48 @@ def index():
         stats = stats_cache.get(directory, ttl_seconds=300)  # 5 min TTL
         directories.append(stats)
     
+    # Check Minidlna status if URL is configured
+    minidlna_status = None
+    if config.minidlna_url:
+        try:
+            response = requests.get(config.minidlna_url, timeout=5)
+            minidlna_status = (response.status_code == 200)
+        except Exception:
+            minidlna_status = False
+
     # Get success message from session if present
     success_msg = request.args.get('success')
     
     return render_template('index.html',
                            directories=directories,
-                           success_message=success_msg)
+                           success_message=success_msg,
+                           config=config,
+                           minidlna_status=minidlna_status)
+
+@app.route('/trigger-minidlna', methods=['POST'])
+@auth_decorator
+def trigger_minidlna():
+    """Trigger Minidlna rescan via Portainer webhook."""
+    if not config.portainer_webhook_url:
+        return redirect(url_for('index'))
+
+    try:
+        requests.post(config.portainer_webhook_url, timeout=10)
+        # Using flash doesn't work well without a secret key and session setup in standard Flask if not careful,
+        # but the app has session_secret config.
+        # However, the index template expects 'success' arg in url or maybe we should use flash.
+        # The existing code uses request.args.get('success'). Let's stick to that pattern for consistency if possible,
+        # or use flash if base.html supports it.
+        # Looking at index.html: {% if success_message %} ...
+        # It reads from `success_message` variable passed in render_template.
+        # So I should redirect with a query param.
+        return redirect(url_for('index', success="Minidlna rescan triggered successfully"))
+    except Exception as e:
+        # In case of error, maybe we want to show it.
+        # But existing index.html only handles success_message.
+        # Let's just log it and redirect.
+        print(f"Error triggering webhook: {e}", file=sys.stderr)
+        return redirect(url_for('index'))
 
 @app.route('/scan/<path:directory>')
 @auth_decorator
@@ -227,6 +264,10 @@ def main():
     parser.add_argument('--ldap-base-dn', help='LDAP base DN (e.g., dc=example,dc=com)')
     parser.add_argument('--session-secret', help='Secret key for session encryption')
     
+    # Minidlna integration arguments
+    parser.add_argument('--portainer-webhook', help='Portainer webhook URL to trigger Minidlna rescan')
+    parser.add_argument('--minidlna-url', help='Minidlna status URL')
+
     parser.add_argument('--port', type=int, default=8000, help='Port to run on (default: 8000)')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     

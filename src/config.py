@@ -27,6 +27,10 @@ class Config:
         self.ldap_search_filter: str = ""
         self.session_secret: str = ""
 
+        # Minidlna integration
+        self.portainer_webhook_url: str = ""
+        self.minidlna_url: str = ""
+
     def load_from_env(self):
         """Load configuration from environment variables."""
         dirs = os.getenv('MEDIA_DIRECTORIES', '')
@@ -55,6 +59,9 @@ class Config:
         if not self.session_secret and self.auth_enabled:
             self.session_secret = os.urandom(24).hex()
 
+        self.portainer_webhook_url = os.getenv('PORTAINER_WEBHOOK_URL', '')
+        self.minidlna_url = os.getenv('MINIDLNA_URL', '')
+
     def load_from_args(self, args):
         """Load configuration from command line arguments."""
         if args.directories:
@@ -79,6 +86,11 @@ class Config:
             self.ldap_base_dn = args.ldap_base_dn
         if hasattr(args, 'session_secret') and args.session_secret:
             self.session_secret = args.session_secret
+
+        if hasattr(args, 'portainer_webhook') and args.portainer_webhook:
+            self.portainer_webhook_url = args.portainer_webhook
+        if hasattr(args, 'minidlna_url') and args.minidlna_url:
+            self.minidlna_url = args.minidlna_url
 
         if not self.ldap_user_dn_template and self.ldap_base_dn:
             self.ldap_user_dn_template = f'uid={{username}},ou=people,{self.ldap_base_dn}'

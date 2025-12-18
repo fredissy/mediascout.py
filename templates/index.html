@@ -253,5 +253,41 @@
         </div>
     </div>
     {% endfor %}
+
+    {% if config.minidlna_url or config.portainer_webhook_url %}
+    <div class="directory-card" style="cursor: default;">
+        <div class="directory-header">
+            <div class="directory-icon" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);">📺</div>
+            <div class="directory-info">
+                <div class="directory-path">Minidlna</div>
+                <div class="directory-meta">
+                    <span>Integration Status</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            {% if config.minidlna_url %}
+                {% if minidlna_status %}
+                <div class="status-badge status-ok">
+                    ✓ Running
+                </div>
+                {% else %}
+                <div class="status-badge status-error">
+                    ✗ Unreachable / Down
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        {% if config.portainer_webhook_url %}
+        <form action="{{ url_for('trigger_minidlna') }}" method="POST" style="margin-top: 1rem;">
+            <button type="submit" class="scan-button" style="background: #f59e0b; width: 100%;">
+                Trigger Rescan
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
