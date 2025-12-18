@@ -104,7 +104,7 @@ class LDAPAuth:
             
         except LDAPException as e:
             # We don't want to propagate this error, but log it for debugging
-            print(f"LDAP search for display name failed: {e}")
+            print(f"LDAP search for display name failed: {e}", flush=True)
             # Continue to try next attribute set or default to None
             
         return None
@@ -123,9 +123,9 @@ class LDAPAuth:
             # Build user DN
             user_dn = self.config.ldap_user_dn_template.format(username=username)
 
-            print(f"DEBUG: Attempting bind with DN: {user_dn}")
-            print(f"DEBUG: LDAP Server: {self.config.ldap_server}:{self.config.ldap_port}")
-            print(f"DEBUG: Use SSL: {self.config.ldap_use_ssl}")
+            print(f"DEBUG: Attempting bind with DN: {user_dn}", flush=True)
+            print(f"DEBUG: LDAP Server: {self.config.ldap_server}:{self.config.ldap_port}", flush=True)
+            print(f"DEBUG: Use SSL: {self.config.ldap_use_ssl}", flush=True)
             
             # Connect to LDAP server
             server = Server(
@@ -135,7 +135,7 @@ class LDAPAuth:
                 get_info=ALL
             )
 
-            print(f"DEBUG: Server object created: {server}")
+            print(f"DEBUG: Server object created: {server}", flush=True)
             
             # Try to bind with user credentials
             conn = Connection(
@@ -146,14 +146,14 @@ class LDAPAuth:
                 auto_bind=False
             )
 
-            print(f"DEBUG: Connection object created, attempting bind...")
+            print(f"DEBUG: Connection object created, attempting bind...", flush=True)
             
             if not conn.bind():
-                print(f"DEBUG: Bind failed - Result: {conn.result}")
-                print(f"DEBUG: Extended error: {conn.last_error}")
+                print(f"DEBUG: Bind failed - Result: {conn.result}", flush=True)
+                print(f"DEBUG: Extended error: {conn.last_error}", flush=True)
 
             if conn.bound:
-                print(f"DEBUG: Bind successful!")
+                print(f"DEBUG: Bind successful!", flush=True)
                 display_name = username
                 
                 # 1. Try LLDAP 0.6.x naming (underscore)
@@ -168,7 +168,7 @@ class LDAPAuth:
                 if extracted_name:
                     display_name = extracted_name
                 else:
-                    print("Warning: Could not retrieve display name attributes, defaulting to username.")
+                    print("Warning: Could not retrieve display name attributes, defaulting to username.", flush=True)
 
                 conn.unbind()
                 return User(username, display_name)
