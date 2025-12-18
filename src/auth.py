@@ -122,6 +122,10 @@ class LDAPAuth:
         try:
             # Build user DN
             user_dn = self.config.ldap_user_dn_template.format(username=username)
+
+            print(f"DEBUG: Attempting bind with DN: {user_dn}")
+            print(f"DEBUG: LDAP Server: {self.config.ldap_server}:{self.config.ldap_port}")
+            print(f"DEBUG: Use SSL: {self.config.ldap_use_ssl}")
             
             # Connect to LDAP server
             server = Server(
@@ -130,6 +134,8 @@ class LDAPAuth:
                 use_ssl=self.config.ldap_use_ssl,
                 get_info=ALL
             )
+
+            print(f"DEBUG: Server object created: {server}")
             
             # Try to bind with user credentials
             conn = Connection(
@@ -137,10 +143,17 @@ class LDAPAuth:
                 user=user_dn,
                 password=password,
                 authentication=SIMPLE,
-                auto_bind=True
+                auto_bind=False
             )
+
+            print(f"DEBUG: Connection object created, attempting bind...")
             
+            if not conn.bind():
+                print(f"DEBUG: Bind failed - Result: {conn.result}")
+                print(f"DEBUG: Extended error: {conn.last_error}")
+
             if conn.bound:
+                print(f"DEBUG: Bind successful!")
                 display_name = username
                 
                 # 1. Try LLDAP 0.6.x naming (underscore)
