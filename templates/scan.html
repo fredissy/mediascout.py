@@ -561,7 +561,7 @@ function renderMovieCard(result, movieId, options = {}) {
                 ${result.movie.poster_path ? `<img src="https://image.tmdb.org/t/p/w185${result.movie.poster_path}" class="tmdb-poster" alt="Poster">` : ''}
                 <div class="tmdb-details">
                     <h4>${escapeHtml(result.movie.title)} (${result.movie.year || 'N/A'}) ${result.movie.vote_average ? '⭐ ' + result.movie.vote_average.toFixed(1) : ''}</h4>
-                    <p class="tmdb-overview">${result.movie.overview ? escapeHtml(result.movie.overview.substring(0, 150)) + (result.movie.overview && result.movie.overview.length > 150 ? '...' : '') : 'No overview available'}</p>
+                    <p class="tmdb-overview">${result.movie.overview ? escapeHtml(result.movie.overview.substring(0, 150)) + (result.movie.overview.length > 150 ? '...' : '') : 'No overview available'}</p>
                 </div>
             </div>
         </div>
