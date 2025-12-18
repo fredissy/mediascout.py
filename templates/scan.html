@@ -461,8 +461,8 @@ async function loadMovieData() {
                         <div class="tmdb-match">
                             ${result.movie.poster_path ? `<img src="https://image.tmdb.org/t/p/w185${result.movie.poster_path}" class="tmdb-poster" alt="Poster">` : ''}
                             <div class="tmdb-details">
-                                <h4>${result.movie.title} (${result.movie.year || 'N/A'}) ${result.movie.vote_average ? '⭐ ' + result.movie.vote_average.toFixed(1) : ''}</h4>
-                                <p class="tmdb-overview">${result.movie.overview ? result.movie.overview.substring(0, 150) + (result.movie.overview.length > 150 ? '...' : '') : 'No overview available'}</p>
+                                <h4>${escapeHtml(result.movie.title)} (${result.movie.year || 'N/A'}) ${result.movie.vote_average ? '⭐ ' + result.movie.vote_average.toFixed(1) : ''}</h4>
+                                <p class="tmdb-overview">${result.movie.overview ? escapeHtml(result.movie.overview.substring(0, 150)) + (result.movie.overview.length > 150 ? '...' : '') : 'No overview available'}</p>
                             </div>
                         </div>
                     </div>
@@ -477,12 +477,12 @@ async function loadMovieData() {
                             <div class="alternatives-list" id="alternatives-${i}">
                                 ${result.alternatives.map(alt => `
                                     <div class="alternative-option" onclick="selectAlternative(${i}, ${alt.id})">
-                                        ${alt.poster_path ? `<img src="https://image.tmdb.org/t/p/w92${alt.poster_path}" class="alternative-poster" alt="${alt.title}">` : '<div class="alternative-poster"></div>'}
+                                        ${alt.poster_path ? `<img src="https://image.tmdb.org/t/p/w92${alt.poster_path}" class="alternative-poster" alt="${escapeHtml(alt.title)}">` : '<div class="alternative-poster"></div>'}
                                         <div class="alternative-info">
-                                            <div class="alternative-title">${alt.title} (${alt.year || 'N/A'})</div>
+                                            <div class="alternative-title">${escapeHtml(alt.title)} (${escapeHtml(alt.year) || 'N/A'})</div>
                                             <div class="alternative-meta">
                                                 ${alt.vote_average ? '⭐ ' + alt.vote_average.toFixed(1) : ''} 
-                                                ${alt.overview ? '• ' + alt.overview.substring(0, 80) + '...' : ''}
+                                                ${alt.overview ? '• ' + escapeHtml(alt.overview.substring(0, 80)) + '...' : ''}
                                             </div>
                                         </div>
                                     </div>
@@ -498,7 +498,7 @@ async function loadMovieData() {
                     
                     <div class="poster-grid" id="poster-grid-${i}">
                         ${result.movie.posters.map((poster, idx) => `
-                            <div class="poster-option" onclick="selectPoster(${i}, ${idx}, '${poster.url_full}')">
+                            <div class="poster-option" onclick="selectPoster(${i}, ${idx}, '${escapeHtml(poster.url_full)}')">
                                 <img src="${poster.url_thumb}" alt="Poster option ${idx + 1}">
                                 <div class="poster-overlay">
                                     <div class="check-icon">✓</div>
@@ -588,7 +588,18 @@ function toggleAlternatives(movieId) {
     arrow.textContent = list.classList.contains('show') ? '▲' : '▼';
 }
 
+const escapeHtml = unsafe => {
+  return unsafe
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+};
+
+var loading = false;
 async function selectAlternative(movieId, tmdbId) {
+    if(loading) return;
     const card = document.querySelector(`[data-movie-id="${movieId}"]`);
     const contentEl = card.querySelector('.movie-content');
     
@@ -597,6 +608,7 @@ async function selectAlternative(movieId, tmdbId) {
     
     try {
         // Fetch details for selected alternative
+        loading = true;
         const response = await fetch(`/api/get-movie-details/${tmdbId}`);
         const result = await response.json();
         
@@ -608,28 +620,24 @@ async function selectAlternative(movieId, tmdbId) {
                         ${result.movie.poster_path ? `<img src="https://image.tmdb.org/t/p/w185${result.movie.poster_path}" class="tmdb-poster" alt="Poster">` : ''}
                         <div class="tmdb-details">
                             <h4>${result.movie.title} (${result.movie.year || 'N/A'}) ${result.movie.vote_average ? '⭐ ' + result.movie.vote_average.toFixed(1) : ''}</h4>
-                            <p class="tmdb-overview">${result.movie.overview.substring(0, 150)}${result.movie.overview.length > 150 ? '...' : ''}</p>
+                            <p class="tmdb-overview">${escapeHtml(result.movie.overview.substring(0, 150))}${result.movie.overview.length > 150 ? '...' : ''}</p>
                         </div>
                     </div>
                     <div style="margin-top: 0.5rem; padding: 0.5rem; background: #d1fae5; border-radius: 6px; font-size: 0.875rem; color: #065f46;">
-                        ✓ Alternative movie selected
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-                    <strong>Select a cover:</strong>
-                    <button class="skip-button" onclick="skipMovie(${movieId})">Skip this movie</button>
-                </div>
-                
-                <div class="poster-grid" id="poster-grid-${movieId}">
-                    ${result.movie.posters.map((poster, idx) => `
-                        <div class="poster-option" onclick="selectPoster(${movieId}, ${idx}, '${poster.url_full}')">
-                            <img src="${poster.url_thumb}" alt="Poster option ${idx + 1}">
-                            <div class="poster-overlay">
-                                <div class="check-icon">✓</div>
+                ${
+                    Array.isArray(result.movie.posters) && result.movie.posters.length > 0
+                    ? `<div class="poster-grid" id="poster-grid-${movieId}">
+                        ${result.movie.posters.map((poster, idx) => `
+                            <div class="poster-option" onclick="selectPoster(${movieId}, ${idx}, '${escapeHtml(poster.url_full)}')">
+                                <img src="${escapeHtml(poster.url_thumb)}" alt="Poster option ${idx + 1}">
+                                <div class="poster-overlay">
+                                    <div class="check-icon">✓</div>
+                                </div>
                             </div>
-                        </div>
-                    `).join('')}
+                        `).join('')}
+                    </div>`
+                    : `<div class="no-posters-message" style="padding: 1rem; color: #6b7280; text-align: center;">No posters available for this movie.</div>`
+                }
                 </div>
             `;
             
@@ -643,6 +651,8 @@ async function selectAlternative(movieId, tmdbId) {
         }
     } catch (error) {
         contentEl.innerHTML = `<div class="error-message">Error loading alternative: ${error?.message || 'Unknown error occurred'}</div>`;
+    } finally {
+        loading = false;
     }
 }
 </script>

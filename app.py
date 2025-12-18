@@ -7,6 +7,7 @@ import os
 import base64
 import argparse
 import sys
+import html
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_login import login_user, logout_user, login_required, current_user
@@ -69,6 +70,10 @@ for d in config.media_directories:
 @app.template_filter('b64encode')
 def b64encode_filter(s):
     return base64.urlsafe_b64encode(s.encode()).decode()
+
+@app.template_filter('escape')
+def htmlescape_filter(s):
+    return html.escape(s)
 
 # ============================================================================
 # Authentication Routes

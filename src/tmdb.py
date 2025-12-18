@@ -19,7 +19,7 @@ class TMDBClient:
         Search for a movie by title and optional year.
         
         Returns:
-            Dict with 'success', 'movie' (best match), 'alternatives' (other matches), 'posters', or 'error'
+            Dict with 'success', 'movie' (best match, with posters), 'alternatives' (other matches), or 'error'
         """
         try:
             # Search for movie
@@ -108,7 +108,7 @@ class TMDBClient:
             
             # Get posters
             movie_data['posters'] = self._get_movie_posters(movie_id)
-            
+
             return {
                 'success': True,
                 'movie': movie_data
