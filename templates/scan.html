@@ -561,7 +561,7 @@ function renderMovieCard(result, movieId, options = {}) {
                 ${result.movie.poster_path ? `<img src="https://image.tmdb.org/t/p/w185${result.movie.poster_path}" class="tmdb-poster" alt="Poster">` : ''}
                 <div class="tmdb-details">
                     <h4>${escapeHtml(result.movie.title)} (${result.movie.year || 'N/A'}) ${result.movie.vote_average ? '⭐ ' + result.movie.vote_average.toFixed(1) : ''}</h4>
-                    <p class="tmdb-overview">${result.movie.overview ? escapeHtml(result.movie.overview.substring(0, 150)) + (result.movie.overview.length > 150 ? '...' : '') : 'No overview available'}</p>
+                    <p class="tmdb-overview">${result.movie.overview ? escapeHtml(result.movie.overview.substring(0, 150)) + (result.movie.overview && result.movie.overview.length > 150 ? '...' : '') : 'No overview available'}</p>
                 </div>
             </div>
         </div>
@@ -580,7 +580,7 @@ function renderMovieCard(result, movieId, options = {}) {
                     <div class="alternative-option" onclick="selectAlternative(${movieId}, ${alt.id})">
                         ${alt.poster_path ? `<img src="https://image.tmdb.org/t/p/w92${alt.poster_path}" class="alternative-poster" alt="${escapeHtml(alt.title)}">` : '<div class="alternative-poster"></div>'}
                         <div class="alternative-info">
-                            <div class="alternative-title">${escapeHtml(alt.title)} (${escapeHtml(alt.year) || 'N/A'})</div>
+                            <div class="alternative-title">${escapeHtml(alt.title)} (${alt.year ? escapeHtml(alt.year) : 'N/A'})</div>
                             <div class="alternative-meta">
                                 ${alt.vote_average ? '⭐ ' + alt.vote_average.toFixed(1) : ''} 
                                 ${alt.overview ? '• ' + escapeHtml(alt.overview.substring(0, 80)) + '...' : ''}
