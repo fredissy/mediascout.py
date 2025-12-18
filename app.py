@@ -71,10 +71,6 @@ for d in config.media_directories:
 def b64encode_filter(s):
     return base64.urlsafe_b64encode(s.encode()).decode()
 
-@app.template_filter('escape')
-def htmlescape_filter(s):
-    return html.escape(s)
-
 # ============================================================================
 # Authentication Routes
 # ============================================================================
@@ -162,7 +158,7 @@ def get_movie_details(movie_id):
     API endpoint to get detailed information for a specific movie.
     Used when user selects an alternative match.
     """
-    if isinstance(movie_id, int) is False or movie_id <= 0:
+    if movie_id <= 0:
         return jsonify({'success': False, 'error': 'Invalid movie ID'})
 
     result = tmdb_client.get_movie_details(movie_id)

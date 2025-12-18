@@ -597,7 +597,7 @@ const escapeHtml = unsafe => {
     .replaceAll("'", "&#039;");
 };
 
-var loading = false;
+let loading = false;
 async function selectAlternative(movieId, tmdbId) {
     if(loading) return;
     const card = document.querySelector(`[data-movie-id="${movieId}"]`);
@@ -619,8 +619,8 @@ async function selectAlternative(movieId, tmdbId) {
                     <div class="tmdb-match">
                         ${result.movie.poster_path ? `<img src="https://image.tmdb.org/t/p/w185${result.movie.poster_path}" class="tmdb-poster" alt="Poster">` : ''}
                         <div class="tmdb-details">
-                            <h4>${result.movie.title} (${result.movie.year || 'N/A'}) ${result.movie.vote_average ? '⭐ ' + result.movie.vote_average.toFixed(1) : ''}</h4>
-                            <p class="tmdb-overview">${escapeHtml(result.movie.overview.substring(0, 150))}${result.movie.overview.length > 150 ? '...' : ''}</p>
+                            <h4>${escapeHtml(result.movie.title)} (${result.movie.year || 'N/A'}) ${result.movie.vote_average ? '⭐ ' + result.movie.vote_average.toFixed(1) : ''}</h4>
+                            <p class="tmdb-overview">${result.movie.overview ? escapeHtml(result.movie.overview.substring(0, 150)):''}${result.movie.overview.length > 150 ? '...' : ''}</p>
                         </div>
                     </div>
                     <div style="margin-top: 0.5rem; padding: 0.5rem; background: #d1fae5; border-radius: 6px; font-size: 0.875rem; color: #065f46;">
@@ -639,6 +639,7 @@ async function selectAlternative(movieId, tmdbId) {
                     : `<div class="no-posters-message" style="padding: 1rem; color: #6b7280; text-align: center;">No posters available for this movie.</div>`
                 }
                 </div>
+            </div>
             `;
             
             // Clear any previous selection for this movie
@@ -647,10 +648,10 @@ async function selectAlternative(movieId, tmdbId) {
             posterOptions.forEach(el => el.classList.remove('selected'));
             updateSelectionCount();
         } else {
-            contentEl.innerHTML = `<div class="error-message">Failed to load alternative: ${result.error || 'Unknown error occurred'}</div>`;
+            contentEl.innerHTML = `<div class="error-message">Failed to load alternative: ${escapeHtml(result.error || 'Unknown error occurred')}</div>`;
         }
     } catch (error) {
-        contentEl.innerHTML = `<div class="error-message">Error loading alternative: ${error?.message || 'Unknown error occurred'}</div>`;
+        contentEl.innerHTML = `<div class="error-message">Error loading alternative: ${escapeHtml(error?.message || 'Unknown error occurred')}</div>`;
     } finally {
         loading = false;
     }

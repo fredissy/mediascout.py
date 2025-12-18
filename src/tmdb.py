@@ -1,5 +1,5 @@
 """
-Enhanced TMDB Client with alternative matches support
+Enhanced TMDB Client module with alternative matches support
 """
 
 from typing import Dict, List, Optional
