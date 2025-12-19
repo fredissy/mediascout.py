@@ -27,6 +27,12 @@ class Config:
         self.ldap_search_filter: str = ""
         self.session_secret: str = ""
 
+        # Minidlna integration
+        # Portainer webhook URL to trigger container restart/rescan
+        self.portainer_webhook_url: str = ""
+        # URL to check Minidlna service status
+        self.minidlna_url: str = ""
+
     def load_from_env(self):
         """Load configuration from environment variables."""
         dirs = os.getenv('MEDIA_DIRECTORIES', '')
@@ -55,6 +61,9 @@ class Config:
         if not self.session_secret and self.auth_enabled:
             self.session_secret = os.urandom(24).hex()
 
+        self.portainer_webhook_url = os.getenv('PORTAINER_WEBHOOK_URL', '')
+        self.minidlna_url = os.getenv('MINIDLNA_URL', '')
+
     def load_from_args(self, args):
         """Load configuration from command line arguments."""
         if args.directories:
@@ -65,6 +74,10 @@ class Config:
             self.tmdb_api_key = args.tmdb_key
         if args.tmdb_locale:
             self.tmdb_locale = args.tmdb_locale.strip()
+        if args.portainer_webhook_url:
+            self.portainer_webhook_url = args.portainer_webhook_url
+        if args.minidlna_url:
+            self.minidlna_url = args.minidlna_url
         
         # Authentication command line arguments
         if hasattr(args, 'auth_enabled') and args.auth_enabled is not None:
@@ -113,5 +126,11 @@ class Config:
                 errors.append("AUTH_ENABLED is true but LDAP_BASE_DN is not specified")
             if not self.session_secret:
                 errors.append("AUTH_ENABLED is true but SESSION_SECRET is not specified")
+
+        # Validate URLs if present
+        if self.portainer_webhook_url and not (self.portainer_webhook_url.startswith('http://') or self.portainer_webhook_url.startswith('https://')):
+            errors.append(f"Invalid Portainer Webhook URL: {self.portainer_webhook_url}")
+        if self.minidlna_url and not (self.minidlna_url.startswith('http://') or self.minidlna_url.startswith('https://')):
+            errors.append(f"Invalid Minidlna URL: {self.minidlna_url}")
 
         return errors

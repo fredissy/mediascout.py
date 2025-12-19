@@ -25,6 +25,10 @@
         transform: translateY(-4px);
     }
 
+    directory-card-static {
+        cursor: default;
+    }
+
     .directory-header {
         display: flex;
         align-items: flex-start;
@@ -138,6 +142,11 @@
         margin-top: 1rem;
     }
 
+    .rescan-button {
+        background: #f59e0b;
+        width: 100%;
+    }
+
     .scan-button:hover {
         background: #5a67d8;
     }
@@ -181,6 +190,13 @@
 <div class="alert alert-success">
     <span>✓</span>
     <span>{{ success_message }}</span>
+</div>
+{% endif %}
+
+{% if error_message %}
+<div class="alert alert-danger" style="background-color: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; display: flex; align-items: center; gap: 0.75rem;">
+    <span>✗</span>
+    <span>{{ error_message }}</span>
 </div>
 {% endif %}
 
@@ -253,5 +269,41 @@
         </div>
     </div>
     {% endfor %}
+
+    {% if config.minidlna_url or config.portainer_webhook_url %}
+    <div class="directory-card directory-card-static">
+        <div class="directory-header">
+            <div class="directory-icon" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);">📺</div>
+            <div class="directory-info">
+                <div class="directory-path">Minidlna</div>
+                <div class="directory-meta">
+                    <span>Integration Status</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            {% if config.minidlna_url %}
+                {% if minidlna_status %}
+                <div class="status-badge status-ok">
+                    ✓ Running
+                </div>
+                {% else %}
+                <div class="status-badge status-error">
+                    ✗ Unreachable / Down
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        {% if config.portainer_webhook_url %}
+        <form action="{{ url_for('trigger_minidlna') }}" method="POST" style="margin-top: 1rem;">
+            <button type="submit" class="scan-button rescan-button" aria-label="Trigger Minidlna Rescan">
+                Trigger Rescan
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
