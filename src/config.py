@@ -126,4 +126,10 @@ class Config:
             if not self.session_secret:
                 errors.append("AUTH_ENABLED is true but SESSION_SECRET is not specified")
 
+        # Validate URLs if present
+        if self.portainer_webhook_url and not (self.portainer_webhook_url.startswith('http://') or self.portainer_webhook_url.startswith('https://')):
+            errors.append(f"Invalid Portainer Webhook URL: {self.portainer_webhook_url}")
+        if self.minidlna_url and not (self.minidlna_url.startswith('http://') or self.minidlna_url.startswith('https://')):
+            errors.append(f"Invalid Minidlna URL: {self.minidlna_url}")
+
         return errors

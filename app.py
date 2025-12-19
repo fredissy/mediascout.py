@@ -19,6 +19,8 @@ from src.image import ImageProcessor
 from src.scanner import FileScanner, DirectoryStatsCache
 from src.auth import setup_auth, auth_required
 from src.utils import is_absolute
+from src.minidlna import MinidlnaClient
+from src.portainer import PortainerClient
 
 # ============================================================================
 # Flask Application
@@ -66,6 +68,12 @@ for d in config.media_directories:
         stats_cache.get(d, ttl_seconds=0)
     except Exception:
         pass
+
+# --------------------------------------------------------------------------
+# Integration Clients
+# --------------------------------------------------------------------------
+minidlna_client = MinidlnaClient(config.minidlna_url)
+portainer_client = PortainerClient(config.portainer_webhook_url)
 
 
 @app.template_filter('b64encode')
@@ -126,11 +134,8 @@ def index():
     # Check Minidlna status if URL is configured
     minidlna_status = None
     if config.minidlna_url:
-        try:
-            response = requests.get(config.minidlna_url, timeout=5)
-            minidlna_status = (response.status_code == 200)
-        except Exception:
-            minidlna_status = False
+        # Get cached status (TTL 60s)
+        minidlna_status = minidlna_client.get_status(ttl_seconds=60)
 
     # Get success/error message from session if present
     success_msg = request.args.get('success')
@@ -151,8 +156,7 @@ def trigger_minidlna():
         return redirect(url_for('index'))
 
     try:
-        # verify=False is used because Portainer often uses self-signed certs
-        requests.post(config.portainer_webhook_url, timeout=10, verify=False)
+        portainer_client.trigger_webhook()
         return redirect(url_for('index', success="Minidlna rescan triggered successfully"))
     except Exception as e:
         print(f"Error triggering webhook: {e}", file=sys.stderr)
