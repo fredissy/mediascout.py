@@ -21,4 +21,7 @@ class PortainerClient:
             return
 
         # verify=False is used because Portainer often uses self-signed certs
-        requests.post(self.webhook_url, timeout=10, verify=False)
+        response = requests.post(self.webhook_url, timeout=10, verify=False)
+
+        if not 200 <= response.status_code < 300:
+            raise Exception(f"Portainer returned status {response.status_code}: {response.text}")
