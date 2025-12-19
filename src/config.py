@@ -28,7 +28,9 @@ class Config:
         self.session_secret: str = ""
 
         # Minidlna integration
+        # Portainer webhook URL to trigger container restart/rescan
         self.portainer_webhook_url: str = ""
+        # URL to check Minidlna service status
         self.minidlna_url: str = ""
 
     def load_from_env(self):
@@ -72,6 +74,10 @@ class Config:
             self.tmdb_api_key = args.tmdb_key
         if args.tmdb_locale:
             self.tmdb_locale = args.tmdb_locale.strip()
+        if args.portainer_webhook:
+            self.portainer_webhook = args.portainer_webhook
+        if args.minidlna_url:
+            self.minidlna_url = args.minidlna_url
         
         # Authentication command line arguments
         if hasattr(args, 'auth_enabled') and args.auth_enabled is not None:
@@ -86,11 +92,6 @@ class Config:
             self.ldap_base_dn = args.ldap_base_dn
         if hasattr(args, 'session_secret') and args.session_secret:
             self.session_secret = args.session_secret
-
-        if hasattr(args, 'portainer_webhook') and args.portainer_webhook:
-            self.portainer_webhook_url = args.portainer_webhook
-        if hasattr(args, 'minidlna_url') and args.minidlna_url:
-            self.minidlna_url = args.minidlna_url
 
         if not self.ldap_user_dn_template and self.ldap_base_dn:
             self.ldap_user_dn_template = f'uid={{username}},ou=people,{self.ldap_base_dn}'

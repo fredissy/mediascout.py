@@ -25,6 +25,10 @@
         transform: translateY(-4px);
     }
 
+    directory-card-static {
+        cursor: default;
+    }
+
     .directory-header {
         display: flex;
         align-items: flex-start;
@@ -136,6 +140,11 @@
         cursor: pointer;
         transition: background 0.2s;
         margin-top: 1rem;
+    }
+
+    .rescan-button {
+        background: #f59e0b;
+        width: 100%;
     }
 
     .scan-button:hover {
@@ -262,7 +271,7 @@
     {% endfor %}
 
     {% if config.minidlna_url or config.portainer_webhook_url %}
-    <div class="directory-card" style="cursor: default;">
+    <div class="directory-card directory-card-static">
         <div class="directory-header">
             <div class="directory-icon" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);">📺</div>
             <div class="directory-info">
@@ -287,9 +296,9 @@
             {% endif %}
         </div>
 
-        {% if config.portainer_webhook_url %}
+        {% if config.portainer_webhook %}
         <form action="{{ url_for('trigger_minidlna') }}" method="POST" style="margin-top: 1rem;">
-            <button type="submit" class="scan-button" style="background: #f59e0b; width: 100%;">
+            <button type="submit" class="scan-button rescan-button" aria-label="Trigger Minidlna Rescan">
                 Trigger Rescan
             </button>
         </form>

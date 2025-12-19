@@ -140,6 +140,8 @@ def index():
     # Get success/error message from session if present
     success_msg = request.args.get('success')
     error_msg = request.args.get('error')
+
+    print("webhook:", config.portainer_webhook, flush=True)
     
     return render_template('index.html',
                            directories=directories,
@@ -298,13 +300,16 @@ def main():
         return
 
     # Re-initialize TMDBClient and auth because config might have changed
-    global tmdb_client, ldap_auth
+    global tmdb_client, ldap_auth, minidlna_client, portainer_client
     tmdb_client = TMDBClient(
         config.tmdb_api_key,
         config.tmdb_base_url,
         config.tmdb_image_base,
         config.tmdb_locale
     )
+
+    minidlna_client = MinidlnaClient(config.minidlna_url)
+    portainer_client = PortainerClient(config.portainer_webhook_url)
     
     ldap_auth = setup_auth(app, config)
 
@@ -313,6 +318,7 @@ def main():
     print(f"✓ Monitoring {len(config.media_directories)} director{'y' if len(config.media_directories) == 1 else 'ies'}")
     print(f"✓ File extensions: {', '.join(config.file_extensions)}")
     print(f"✓ TMDB Locale: {config.tmdb_locale}\n")
+    print(f"✓ MiniDLNA url: {config.minidlna_url}\n")
     
     app.run(host=args.host, port=args.port, debug=True)
 
