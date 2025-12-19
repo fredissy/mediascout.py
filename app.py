@@ -132,12 +132,14 @@ def index():
         except Exception:
             minidlna_status = False
 
-    # Get success message from session if present
+    # Get success/error message from session if present
     success_msg = request.args.get('success')
+    error_msg = request.args.get('error')
     
     return render_template('index.html',
                            directories=directories,
                            success_message=success_msg,
+                           error_message=error_msg,
                            config=config,
                            minidlna_status=minidlna_status)
 
@@ -149,22 +151,12 @@ def trigger_minidlna():
         return redirect(url_for('index'))
 
     try:
-        requests.post(config.portainer_webhook_url, timeout=10)
-        # Using flash doesn't work well without a secret key and session setup in standard Flask if not careful,
-        # but the app has session_secret config.
-        # However, the index template expects 'success' arg in url or maybe we should use flash.
-        # The existing code uses request.args.get('success'). Let's stick to that pattern for consistency if possible,
-        # or use flash if base.html supports it.
-        # Looking at index.html: {% if success_message %} ...
-        # It reads from `success_message` variable passed in render_template.
-        # So I should redirect with a query param.
+        # verify=False is used because Portainer often uses self-signed certs
+        requests.post(config.portainer_webhook_url, timeout=10, verify=False)
         return redirect(url_for('index', success="Minidlna rescan triggered successfully"))
     except Exception as e:
-        # In case of error, maybe we want to show it.
-        # But existing index.html only handles success_message.
-        # Let's just log it and redirect.
         print(f"Error triggering webhook: {e}", file=sys.stderr)
-        return redirect(url_for('index'))
+        return redirect(url_for('index', error=f"Error triggering rescan: {str(e)}"))
 
 @app.route('/scan/<path:directory>')
 @auth_decorator

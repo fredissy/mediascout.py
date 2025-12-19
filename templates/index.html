@@ -184,6 +184,13 @@
 </div>
 {% endif %}
 
+{% if error_message %}
+<div class="alert alert-danger" style="background-color: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; display: flex; align-items: center; gap: 0.75rem;">
+    <span>✗</span>
+    <span>{{ error_message }}</span>
+</div>
+{% endif %}
+
 <div class="directory-grid">
     {% for dir in directories %}
     <div class="directory-card" onclick="window.location.href='/scan/{{ dir.directory | b64encode }}'">
