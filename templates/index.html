@@ -296,7 +296,7 @@
             {% endif %}
         </div>
 
-        {% if config.portainer_webhook %}
+        {% if config.portainer_webhook_url %}
         <form action="{{ url_for('trigger_minidlna') }}" method="POST" style="margin-top: 1rem;">
             <button type="submit" class="scan-button rescan-button" aria-label="Trigger Minidlna Rescan">
                 Trigger Rescan

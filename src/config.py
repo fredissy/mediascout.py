@@ -74,8 +74,8 @@ class Config:
             self.tmdb_api_key = args.tmdb_key
         if args.tmdb_locale:
             self.tmdb_locale = args.tmdb_locale.strip()
-        if args.portainer_webhook:
-            self.portainer_webhook = args.portainer_webhook
+        if args.portainer_webhook_url:
+            self.portainer_webhook_url = args.portainer_webhook_url
         if args.minidlna_url:
             self.minidlna_url = args.minidlna_url
         

@@ -141,8 +141,6 @@ def index():
     success_msg = request.args.get('success')
     error_msg = request.args.get('error')
 
-    print("webhook:", config.portainer_webhook, flush=True)
-    
     return render_template('index.html',
                            directories=directories,
                            success_message=success_msg,
@@ -263,7 +261,7 @@ def main():
     parser.add_argument('--session-secret', help='Secret key for session encryption')
     
     # Minidlna integration arguments
-    parser.add_argument('--portainer-webhook', help='Portainer webhook URL to trigger Minidlna rescan')
+    parser.add_argument('--portainer-webhook-url', help='Portainer webhook URL to trigger Minidlna rescan')
     parser.add_argument('--minidlna-url', help='Minidlna status URL')
 
     parser.add_argument('--port', type=int, default=8000, help='Port to run on (default: 8000)')
