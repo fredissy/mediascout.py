@@ -180,9 +180,11 @@ def save_covers():
     }
 
     for cover_info in covers:
+        target_size = (current_app.ms_config.target_width, current_app.ms_config.target_height)
         result = ImageProcessor.download_and_save(
             cover_info['url'],
-            cover_info['path']
+            cover_info['path'],
+            size=target_size
         )
 
         if result['success']:
