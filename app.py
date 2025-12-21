@@ -106,6 +106,10 @@ def main():
     parser.add_argument('--portainer-webhook-url', help='Portainer webhook URL to trigger Minidlna rescan')
     parser.add_argument('--minidlna-url', help='Minidlna status URL')
 
+    # Image target dimensions
+    parser.add_argument('--target-width', type=int, help='Target width for cover images (default: 160)')
+    parser.add_argument('--target-height', type=int, help='Target height for cover images (default: 160)')
+
     parser.add_argument('--port', type=int, default=8000, help='Port to run on (default: 8000)')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     
