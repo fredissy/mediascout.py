@@ -51,13 +51,17 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
-        user = current_app.ldap_auth.authenticate(username, password)
-        if user:
-            login_user(user)
-            next_page = request.args.get('next')
-            return redirect(next_page if (next_page and not is_absolute(next_page)) else url_for('main.index'))
+        ldap_auth = getattr(current_app, 'ldap_auth', None)
+        if ldap_auth is None:
+            error = 'Authentication is not configured'
         else:
-            error = 'Invalid username or password'
+            user = ldap_auth.authenticate(username, password)
+            if user:
+                login_user(user)
+                next_page = request.args.get('next')
+                return redirect(next_page if (next_page and not is_absolute(next_page)) else url_for('main.index'))
+            else:
+                error = 'Invalid username or password'
 
     return render_template('login.html', error=error)
 
@@ -123,7 +127,7 @@ def scan_directory(directory):
         if decoded_dir in current_app.ms_config.media_directories:
             directory = decoded_dir
     except Exception:
-        pass
+        return "Invalid directory", 403
     # Validate directory is in config
     if directory not in current_app.ms_config.media_directories:
         return "Directory not allowed", 403

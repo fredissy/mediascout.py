@@ -71,49 +71,6 @@ portainer_client = PortainerClient(config.portainer_webhook_url)
 
 # Attach services to app instance for access in Blueprints
 app.config.from_object(config)
-# Also attach the config object itself as a property if needed, though app.config is standard
-# But our routes use current_app.config expecting the Config object wrapper, not the dictionary.
-# Wait, Flask's app.config is a Config dictionary subclass. Our Config is a custom class.
-# To avoid confusion, I'll attach our custom config as app.config (overwriting Flask's config?)
-# NO. app.config in Flask is essential.
-# I should attach it as app.custom_config or just app.config_wrapper.
-# HOWEVER, in src/routes.py I used `current_app.config`.
-# Flask's `current_app.config` is the Flask config dictionary.
-# My `src/routes.py` expects `current_app.config` to be the `Config` object from `src.config`.
-# Overwriting `app.config` is dangerous.
-# I should attach it as `app.app_config` or similar, and update routes.
-# OR, I can just attach it as `app.config` IF `Config` behaves like a mapping.
-# `src.config.Config` is a class.
-# Let's check `src/config.py`.
-
-# If I overwrite app.config, Flask might break.
-# Let's assume I should attach it as `app.config` but I need to be careful.
-# Actually, the original code had `config` as a global variable.
-# In `src/routes.py`, I used `current_app.config`.
-# If I do `app.config = config`, I replace Flask's config.
-# This will likely break Flask internal mechanisms that rely on app.config being a dictionary-like object with specific keys.
-# Better to name it `app.mediascout_config` or something, OR update routes to use `current_app.mediascout_config`.
-# Or maybe `app.ms_config`.
-#
-# Wait, the previous `app.py` had `config = Config()`.
-# Routes accessed `config` from the global scope.
-# My `src/routes.py` uses `current_app.config`.
-# I will attach it as `app.config` and risk it? No.
-# I will attach it as `app.config` BUT `Config` class must inherit from dict or something?
-# No, `src.config.Config` is likely a plain object.
-#
-# Correct approach: Attach it as `app.ms_config` and update `src/routes.py`.
-# Or even better, `app.app_config`.
-
-# Let's see `src/routes.py` usage: `current_app.config.media_directories` etc.
-# If I change it to `current_app.ms_config`, I need to update `src/routes.py`.
-
-# I will update `src/routes.py` to use `current_app.ms_config`.
-# And here I will attach `app.ms_config = config`.
-
-# Wait, `app.py` has `app = Flask(__name__)`.
-# I will attach `scanner`, `tmdb_client`, `ldap_auth`, `stats_cache`, `minidlna_client`, `portainer_client` to `app`.
-# And `config`.
 
 app.ms_config = config
 app.scanner = scanner
