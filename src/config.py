@@ -71,14 +71,18 @@ class Config:
         target_width_env = os.getenv('TARGET_WIDTH')
         if target_width_env:
             try:
-                self.target_width = int(target_width_env)
+                width = int(target_width_env)
+                if width > 0:
+                    self.target_width = width
             except ValueError:
                 pass  # Keep default if invalid
 
         target_height_env = os.getenv('TARGET_HEIGHT')
         if target_height_env:
             try:
-                self.target_height = int(target_height_env)
+                height = int(target_height_env)
+                if height > 0:
+                    self.target_height = height
             except ValueError:
                 pass  # Keep default if invalid
 
@@ -98,10 +102,12 @@ class Config:
             self.minidlna_url = args.minidlna_url
 
         if hasattr(args, 'target_width') and args.target_width:
-             self.target_width = args.target_width
+             if args.target_width > 0:
+                self.target_width = args.target_width
 
         if hasattr(args, 'target_height') and args.target_height:
-             self.target_height = args.target_height
+             if args.target_height > 0:
+                self.target_height = args.target_height
         
         # Authentication command line arguments
         if hasattr(args, 'auth_enabled') and args.auth_enabled is not None:
