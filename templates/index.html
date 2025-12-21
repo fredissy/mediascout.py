@@ -23,7 +23,7 @@
 
 <div class="directory-grid">
     {% for dir in directories %}
-    <div class="directory-card" onclick="window.location.href='/scan/{{ dir.directory | b64encode }}'">
+    <div class="directory-card" onclick="window.location.href='{{ url_for('main.scan_directory', directory=dir.directory | b64encode) }}'">
         <div class="directory-header">
             <div class="directory-icon">📁</div>
             <div class="directory-info">
@@ -118,7 +118,7 @@
         </div>
 
         {% if config.portainer_webhook_url %}
-        <form action="{{ url_for('trigger_minidlna') }}" method="POST" class="rescan-form">
+        <form action="{{ url_for('main.trigger_minidlna') }}" method="POST" class="rescan-form">
             <button type="submit" class="scan-button rescan-button" aria-label="Trigger Minidlna Rescan">
                 Trigger Rescan
             </button>

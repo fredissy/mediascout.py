@@ -190,7 +190,7 @@ def setup_auth(app, config):
     # Initialize Flask-Login
     login_manager = LoginManager()
     login_manager.init_app(app)
-    login_manager.login_view = 'login'
+    login_manager.login_view = 'main.login'
     login_manager.login_message = 'Please log in to access this page.'
     
     # Initialize LDAP auth
@@ -223,7 +223,7 @@ def auth_required(config):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if config.auth_enabled and not current_user.is_authenticated:
-                return redirect(url_for('login', next=request.url))
+                return redirect(url_for('main.login', next=request.url))
             return f(*args, **kwargs)
         return decorated_function
     return decorator

@@ -3,24 +3,18 @@ Mediascout - Media Cover Manager
 A companion app for minidlna to manage movie cover artwork.
 """
 
-import os
-import base64
 import argparse
 import sys
-import html
-import requests
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
-from flask_login import login_user, logout_user, login_required, current_user
+from flask import Flask
 
 from src.config import Config
 from src.tmdb import TMDBClient
-from src.image import ImageProcessor
 from src.scanner import FileScanner, DirectoryStatsCache
-from src.auth import setup_auth, auth_required
-from src.utils import is_absolute
+from src.auth import setup_auth
 from src.minidlna import MinidlnaClient
 from src.portainer import PortainerClient
+from src.routes import bp as main_bp
 
 # ============================================================================
 # Flask Application
@@ -75,171 +69,19 @@ for d in config.media_directories:
 minidlna_client = MinidlnaClient(config.minidlna_url)
 portainer_client = PortainerClient(config.portainer_webhook_url)
 
+# Attach services to app instance for access in Blueprints
+app.config.from_object(config)
 
-@app.template_filter('b64encode')
-def b64encode_filter(s):
-    return base64.urlsafe_b64encode(s.encode()).decode()
+app.ms_config = config
+app.scanner = scanner
+app.tmdb_client = tmdb_client
+app.ldap_auth = ldap_auth
+app.stats_cache = stats_cache
+app.minidlna_client = minidlna_client
+app.portainer_client = portainer_client
 
-# ============================================================================
-# Authentication Routes
-# ============================================================================
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """Login page and handler."""
-    if not config.auth_enabled:
-        return redirect(url_for('index'))
-    
-    if current_user.is_authenticated:
-        return redirect(url_for('index'))
-    
-    error = None
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        user = ldap_auth.authenticate(username, password)
-        if user:
-            login_user(user)
-            next_page = request.args.get('next')
-            return redirect(next_page if (next_page and not is_absolute(next_page)) else url_for('index'))
-        else:
-            error = 'Invalid username or password'
-    
-    return render_template('login.html', error=error)
-
-@app.route('/logout')
-@login_required
-def logout():
-    """Logout handler."""
-    logout_user()
-    return redirect(url_for('login'))
-
-# ============================================================================
-# Main Application Routes
-# ============================================================================
-
-# Create decorator instance
-auth_decorator = auth_required(config)
-
-@app.route('/')
-@auth_decorator
-def index():
-    """Main page - directory listing."""
-    directories = []
-    for directory in config.media_directories:
-        stats = stats_cache.get(directory, ttl_seconds=300)  # 5 min TTL
-        directories.append(stats)
-    
-    # Check Minidlna status if URL is configured
-    minidlna_status = None
-    if config.minidlna_url:
-        # Get cached status (TTL 60s)
-        minidlna_status = minidlna_client.get_status(ttl_seconds=60)
-
-    # Get success/error message from session if present
-    success_msg = request.args.get('success')
-    error_msg = request.args.get('error')
-
-    return render_template('index.html',
-                           directories=directories,
-                           success_message=success_msg,
-                           error_message=error_msg,
-                           config=config,
-                           minidlna_status=minidlna_status)
-
-@app.route('/trigger-minidlna', methods=['POST'])
-@auth_decorator
-def trigger_minidlna():
-    """Trigger Minidlna rescan via Portainer webhook."""
-    if not config.portainer_webhook_url:
-        return redirect(url_for('index'))
-
-    try:
-        portainer_client.trigger_webhook()
-        return redirect(url_for('index', success="Minidlna rescan triggered successfully"))
-    except Exception as e:
-        print(f"Error triggering webhook: {e}", file=sys.stderr)
-        return redirect(url_for('index', error=f"Error triggering rescan: {str(e)}"))
-
-@app.route('/scan/<path:directory>')
-@auth_decorator
-def scan_directory(directory):
-    """Scan directory and show movies without covers."""
-    # Try to decode base64 if needed
-    try:
-        decoded_dir = base64.urlsafe_b64decode(directory).decode('utf-8')
-        if decoded_dir in config.media_directories:
-            directory = decoded_dir
-    except Exception:
-        pass
-    # Validate directory is in config
-    if directory not in config.media_directories:
-        return "Directory not allowed", 403
-
-    scan_result = scanner.scan_directory(directory)
-    
-    if scan_result['status'] == 'error':
-        return render_template('error.html', error=scan_result['error'])
-    
-    return render_template('scan.html', result=scan_result)
-
-@app.route('/api/get-movie-details/<int:movie_id>', methods=['GET'])
-@auth_decorator
-def get_movie_details(movie_id):
-    """
-    API endpoint to get detailed information for a specific movie.
-    Used when user selects an alternative match.
-    """
-    if movie_id <= 0:
-        return jsonify({'success': False, 'error': 'Invalid movie ID'})
-
-    result = tmdb_client.get_movie_details(movie_id)
-    return jsonify(result)
-
-@app.route('/api/search-movie', methods=['POST'])
-@auth_decorator
-def search_movie():
-    """API endpoint to search TMDB for a movie."""
-    data = request.json
-    title = data.get('title')
-    year = data.get('year')
-    
-    if not title:
-        return jsonify({'success': False, 'error': 'No title provided'})
-    
-    result = tmdb_client.search_movie(title, year)
-    return jsonify(result)
-
-@app.route('/api/save-covers', methods=['POST'])
-@auth_decorator
-def save_covers():
-    """API endpoint to download and save selected covers."""
-    data = request.json
-    covers = data.get('covers', [])
-    
-    results = {
-        'success': 0,
-        'failed': 0,
-        'errors': []
-    }
-    
-    for cover_info in covers:
-        result = ImageProcessor.download_and_save(
-            cover_info['url'],
-            cover_info['path']
-        )
-        
-        if result['success']:
-            results['success'] += 1
-        else:
-            results['failed'] += 1
-            results['errors'].append({
-                'file': cover_info['filename'],
-                'error': result['error']
-            })
-    
-    return jsonify(results)
+# Register Blueprint
+app.register_blueprint(main_bp)
 
 # ============================================================================
 # Main Entry Point
@@ -310,6 +152,15 @@ def main():
     portainer_client = PortainerClient(config.portainer_webhook_url)
     
     ldap_auth = setup_auth(app, config)
+
+    # Update app instances
+    app.ms_config = config
+    app.tmdb_client = tmdb_client
+    app.minidlna_client = minidlna_client
+    app.portainer_client = portainer_client
+    app.ldap_auth = ldap_auth
+    app.scanner = scanner
+    app.stats_cache = stats_cache
 
     # Run Flask app
     print(f"\n✓ Mediascout starting on http://{args.host}:{args.port}")
