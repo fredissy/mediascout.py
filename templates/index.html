@@ -22,6 +22,47 @@
 {% endif %}
 
 <div class="directory-grid">
+    {% if config.download_path %}
+    <div class="directory-card" onclick="window.location.href='{{ url_for('main.downloads') }}'">
+        <div class="directory-header">
+            <div class="directory-icon">⬇️</div>
+            <div class="directory-info">
+                <div class="directory-path">Downloaded files</div>
+                <div class="directory-meta">
+                    <span>{{ config.download_path }}</span>
+                </div>
+            </div>
+            <div class="progress-ring" style="display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: #2c3e50;">
+                {{ download_stats.total_files if download_stats and download_stats.total_files is not none else 0 }}
+            </div>
+        </div>
+
+        <div class="directory-stats">
+            <div class="stat">
+                <div class="stat-value">{{ download_stats.total_files if download_stats and download_stats.total_files is not none else 0 }}</div>
+                <div class="stat-label">Files to sort</div>
+            </div>
+            <div class="stat">
+                <!-- Spacer -->
+            </div>
+        </div>
+
+        {% if download_stats and download_stats.total_files and download_stats.total_files > 0 %}
+        <div class="status-badge status-action">
+            ⚠️ Action Needed
+        </div>
+        {% else %}
+        <div class="status-badge status-ok">
+            ✓ Up to date
+        </div>
+        {% endif %}
+
+        <div class="click-hint">
+            Click to manage
+        </div>
+    </div>
+    {% endif %}
+
     {% for dir in directories %}
     <div class="directory-card" onclick="window.location.href='{{ url_for('main.scan_directory', directory=dir.directory | b64encode) }}'">
         <div class="directory-header">

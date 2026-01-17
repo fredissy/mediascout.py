@@ -32,9 +32,12 @@ class Config:
         self.portainer_webhook_url: str = ""
         # URL to check Minidlna service status
         self.minidlna_url: str = ""
+        self.download_path: str = ""
 
     def load_from_env(self):
         """Load configuration from environment variables."""
+        self.download_path = os.getenv('DOWNLOAD_PATH', '')
+
         dirs = os.getenv('MEDIA_DIRECTORIES', '')
         if dirs:
             self.media_directories = [d.strip() for d in dirs.split(',')]
