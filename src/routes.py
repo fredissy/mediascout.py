@@ -3,6 +3,8 @@ Routes for the Mediascout application.
 """
 
 import sys
+import os
+import shutil
 import base64
 from functools import wraps
 from flask import (
@@ -11,7 +13,7 @@ from flask import (
 )
 from flask_login import login_user, logout_user, login_required, current_user
 
-from src.utils import is_absolute
+from src.utils import is_absolute, get_target_directory
 from src.image import ImageProcessor
 
 # Create Blueprint
@@ -86,6 +88,11 @@ def index():
         stats = current_app.stats_cache.get(directory, ttl_seconds=300)  # 5 min TTL
         directories.append(stats)
 
+    # Download directory stats
+    download_stats = None
+    if current_app.ms_config.download_path:
+        download_stats = current_app.stats_cache.get(current_app.ms_config.download_path, ttl_seconds=60)
+
     # Check Minidlna status if URL is configured
     minidlna_status = None
     if current_app.ms_config.minidlna_url:
@@ -98,10 +105,67 @@ def index():
 
     return render_template('index.html',
                            directories=directories,
+                           download_stats=download_stats,
                            success_message=success_msg,
                            error_message=error_msg,
                            config=current_app.ms_config,
                            minidlna_status=minidlna_status)
+
+@bp.route('/downloads')
+@auth_decorator
+def downloads():
+    """Page to manage downloaded files."""
+    if not current_app.ms_config.download_path:
+        return redirect(url_for('main.index'))
+
+    files = current_app.scanner.scan_simple(current_app.ms_config.download_path)
+
+    return render_template('downloads.html',
+                           files=files,
+                           download_path=current_app.ms_config.download_path)
+
+@bp.route('/move-downloads', methods=['POST'])
+@auth_decorator
+def move_downloads():
+    """Move selected downloaded files to their target directories."""
+    if not current_app.ms_config.download_path:
+        return redirect(url_for('main.index', error="Download path not configured"))
+
+    selected_files = request.form.getlist('files')
+    if not selected_files:
+         return redirect(url_for('main.downloads'))
+
+    success_count = 0
+    errors = []
+
+    for rel_path in selected_files:
+        # Reconstruct full path
+        source_path = os.path.join(current_app.ms_config.download_path, rel_path)
+
+        # Verify file exists and is inside download path (security)
+        if not os.path.exists(source_path) or not os.path.abspath(source_path).startswith(os.path.abspath(current_app.ms_config.download_path)):
+            errors.append(f"Invalid file: {rel_path}")
+            continue
+
+        filename = os.path.basename(rel_path)
+        target_dir = get_target_directory(filename, current_app.ms_config.media_directories)
+
+        if target_dir:
+            try:
+                shutil.move(source_path, os.path.join(target_dir, filename))
+                success_count += 1
+            except Exception as e:
+                errors.append(f"Failed to move {filename}: {str(e)}")
+        else:
+             errors.append(f"No target directory found for {filename}")
+
+    msg = f"Successfully moved {success_count} files."
+    if errors:
+        msg += f" Errors: {len(errors)} files failed."
+        # Optionally log errors or show them
+        print(f"Move errors: {errors}", file=sys.stderr)
+
+    return redirect(url_for('main.index', success=msg if success_count > 0 else None, error=msg if success_count == 0 else None))
 
 @bp.route('/trigger-minidlna', methods=['POST'])
 @auth_decorator

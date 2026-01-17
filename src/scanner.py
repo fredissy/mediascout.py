@@ -19,6 +19,37 @@ class FileScanner:
     def __init__(self, config: Config):
         self.config = config
 
+    def scan_simple(self, directory: str) -> list:
+        """
+        Scan a directory for all media files, regardless of covers.
+
+        Returns:
+            List of dicts with file info.
+        """
+        files_list = []
+        try:
+            for root, dirs, files in os.walk(directory):
+                for file in files:
+                    ext = Path(file).suffix[1:].lower()
+                    if ext not in self.config.file_extensions:
+                        continue
+
+                    filepath = os.path.join(root, file)
+                    rel_path = os.path.relpath(filepath, directory)
+
+                    files_list.append({
+                        'filename': file,
+                        'full_path': filepath,
+                        'rel_path': rel_path
+                    })
+
+            # Sort by filename
+            files_list.sort(key=lambda x: x['filename'])
+            return files_list
+
+        except Exception:
+            return []
+
     def scan_directory(self, directory: str) -> Dict:
         """
         Scan a directory for media files without covers.

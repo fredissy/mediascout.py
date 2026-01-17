@@ -32,9 +32,12 @@ class Config:
         self.portainer_webhook_url: str = ""
         # URL to check Minidlna service status
         self.minidlna_url: str = ""
+        self.download_path: str = ""
 
     def load_from_env(self):
         """Load configuration from environment variables."""
+        self.download_path = os.getenv('DOWNLOAD_PATH', '')
+
         dirs = os.getenv('MEDIA_DIRECTORIES', '')
         if dirs:
             self.media_directories = [d.strip() for d in dirs.split(',')]
@@ -78,7 +81,9 @@ class Config:
             self.portainer_webhook_url = args.portainer_webhook_url
         if args.minidlna_url:
             self.minidlna_url = args.minidlna_url
-        
+        if args.download_path:
+            self.download_path = args.download_path
+
         # Authentication command line arguments
         if hasattr(args, 'auth_enabled') and args.auth_enabled is not None:
             self.auth_enabled = args.auth_enabled
