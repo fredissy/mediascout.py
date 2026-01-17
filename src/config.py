@@ -81,7 +81,9 @@ class Config:
             self.portainer_webhook_url = args.portainer_webhook_url
         if args.minidlna_url:
             self.minidlna_url = args.minidlna_url
-        
+        if args.download_path:
+            self.download_path = args.download_path
+
         # Authentication command line arguments
         if hasattr(args, 'auth_enabled') and args.auth_enabled is not None:
             self.auth_enabled = args.auth_enabled
