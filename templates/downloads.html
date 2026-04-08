@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block extra_styles %}
+<style>
+.file-list {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.file-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #eee;
+}
+
+.file-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.file-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.file-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.file-name {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: #2c3e50;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-path {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.select-all-container {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('main.index') }}" class="back-button">
+    ← Back to Dashboard
+</a>
+
+<div class="scan-header">
+    <h1 class="page-title">{{ download_path }}</h1>
+    <p class="page-description">
+        Found {{ files|length }} movie{{ 's' if files|length != 1 else '' }} downloaded, to be sorted.
+    </p>
+</div>
+
+{% if files|length == 0 %}
+<div class="alert alert-success">
+    <span>✓</span>
+    <span>No files waiting to be sorted.</span>
+</div>
+{% else %}
+
+<form action="{{ url_for('main.move_downloads') }}" method="POST" id="move-form">
+    <div class="select-all-container">
+        <input type="checkbox" id="select-all" class="file-checkbox">
+        <label for="select-all" style="cursor: pointer; font-weight: 500;">Select All</label>
+        <span id="selected-count" style="margin-left: auto; color: #7f8c8d;">0 selected</span>
+    </div>
+
+    <div class="file-list">
+        {% for file in files %}
+        <div class="file-card">
+            <input type="checkbox" name="files" value="{{ file.rel_path }}" class="file-checkbox item-checkbox" id="file-{{ loop.index }}">
+            <div class="file-info">
+                <label for="file-{{ loop.index }}" style="cursor: pointer; width: 100%; display: block;">
+                    <div class="file-name">{{ file.filename }}</div>
+                    <div class="file-path">{{ file.rel_path }}</div>
+                </label>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="validation-section">
+        <button type="submit" class="validate-button" id="validate-btn" disabled>
+            <span>📦</span>
+            <span>Move Selected Files</span>
+        </button>
+    </div>
+</form>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const itemCheckboxes = document.querySelectorAll('.item-checkbox');
+    const validateBtn = document.getElementById('validate-btn');
+    const selectedCountSpan = document.getElementById('selected-count');
+
+    function updateState() {
+        const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
+        selectedCountSpan.textContent = `${checkedCount} selected`;
+        validateBtn.disabled = checkedCount === 0;
+
+        // Update select all checkbox state
+        if (checkedCount === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checkedCount === itemCheckboxes.length) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            itemCheckboxes.forEach(cb => cb.checked = isChecked);
+            updateState();
+        });
+    }
+
+    itemCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateState);
+    });
+
+    // Prevent accidental submit with no selection (handled by disabled button, but as backup)
+    document.getElementById('move-form')?.addEventListener('submit', function(e) {
+        if (document.querySelectorAll('.item-checkbox:checked').length === 0) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}
